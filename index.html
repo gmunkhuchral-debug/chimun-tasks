@@ -434,9 +434,12 @@
   }
   .notif-header .close-btn {
     background: none; border: none; cursor: pointer;
-    color: var(--muted); padding: 4px; font-size: 20px; line-height: 1;
-    display: none;
+    color: var(--muted); font-size: 22px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    transition: background .12s;
   }
+  .notif-header .close-btn:hover { background: #f1f3f5; color: var(--text); }
   .notif-mark-read {
     background: none; border: none; color: var(--primary);
     font-size: 12px; cursor: pointer; padding: 6px 10px;
@@ -491,8 +494,7 @@
       max-height: 85vh;
       animation: drawer-up .25s ease-out;
     }
-    .notif-header .close-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; }
-    .notif-header .close-btn:hover { background: #f1f3f5; }
+    .notif-header .close-btn { width: 36px; height: 36px; }
     .notif-item { padding: 16px 18px; }
     .notif-icon { width: 40px; height: 40px; }
     .notif-msg { font-size: 15px; }
@@ -1665,6 +1667,12 @@ function renderRow(t) {
       showToast(`${who} үүсгэсэн даалгавар. Устгах эрх танд алга. Биелүүлсэн бол ✓ тэмдэглээрэй.`, 'warn', 4500);
     }
     else if (act === 'edit-title') {
+      // Permission check — зөвхөн засах эрхтэй хүн inline edit хийнэ
+      const perm = canEditTask(t);
+      if (!perm.all) {
+        showToast('Та энэ даалгаврыг засах эрхгүй. Зөвхөн ✓ тэмдэглэх боломжтой.', 'warn');
+        return;
+      }
       const el = e.target;
       el.contentEditable = 'true'; el.focus();
       const range = document.createRange(); range.selectNodeContents(el);
@@ -1748,6 +1756,29 @@ async function toggleTask(id) {
   }
   render();
 }
+/* Permission матриц:
+   - CEO: бүх зүйл засах + устгах
+   - Үүсгэгч өөрөө: бүх зүйл засах + устгах
+   - Үүсгэгчээс ДЭЭГҮҮР зэрэглэлтэй (managers over staff): бүх зүйл засах + устгах
+   - Хариуцагч (assignee): зөвхөн ✓ status тэмдэглэх (гарчиг/тайлбар/огноо засахгүй)
+   - Бусад: зөвхөн харах
+*/
+function canEditTask(t) {
+  if (!t) return { all: false, status: false, none: true };
+  if (state.isCEO) return { all: true, status: true, none: false };
+  // Үүсгэгч нь өөрөө
+  if (state.me && state.me === t.createdBy) return { all: true, status: true, none: false };
+  const creator = TEAM.find(m => m.id === t.createdBy);
+  const creatorLevel = creator ? (creator.level || 0) : 100;
+  const myLevel = state.myLevel || 0;
+  // Үүсгэгчээс ДЭЭГҮҮР түвшинтэй
+  if (myLevel > creatorLevel) return { all: true, status: true, none: false };
+  // Хариуцагч — зөвхөн status солих
+  if (state.me === t.assignee) return { all: false, status: true, none: false };
+  // Бусад — зөвхөн харах
+  return { all: false, status: false, none: true };
+}
+
 function canDeleteTask(t) {
   // CEO can always delete. Others can only delete tasks created by someone at
   // their rank or below. Tasks with no `createdBy` are treated as CEO-created
@@ -1790,15 +1821,36 @@ async function deleteTask(id) {
 function openTaskModal(id) {
   const t = id ? state.tasks.find(x=>x.id===id) : null;
   state.editingId = id || null;
-  document.getElementById('task-modal-title').textContent = t ? 'Даалгавар засах' : 'Шинэ даалгавар';
+
+  // Permission check — existing task үед canEditTask тогтооно
+  const canEdit = t ? canEditTask(t) : { all: true, status: true, none: false };
+  state._modalCanEdit = canEdit;
+
+  // Header текст
+  if (!t) {
+    document.getElementById('task-modal-title').textContent = 'Шинэ даалгавар';
+  } else if (canEdit.all) {
+    document.getElementById('task-modal-title').textContent = 'Даалгавар засах';
+  } else if (canEdit.status) {
+    document.getElementById('task-modal-title').textContent = 'Даалгавар (зөвхөн харах)';
+  } else {
+    document.getElementById('task-modal-title').textContent = 'Даалгавар';
+  }
+
   // Creator info — only shown when editing an existing task
   const creatorInfo = document.getElementById('t-creator-info');
   if (t && t.createdBy) {
     const creator = memberName(t.createdBy);
     const assignee = memberName(t.assignee);
     const createdAt = t.created ? new Date(t.created).toLocaleString('mn-MN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-    creatorInfo.innerHTML = `📋 <strong>${escapeHtml(creator)}</strong> → <strong>${escapeHtml(assignee)}</strong>` +
+    let info = `📋 <strong>${escapeHtml(creator)}</strong> → <strong>${escapeHtml(assignee)}</strong>` +
       (createdAt ? ` · ${escapeHtml(createdAt)}` : '');
+    if (!canEdit.all && canEdit.status) {
+      info += `<br><span style="color:var(--warn);font-weight:600;">⚠ Та зөвхөн ✓ тэмдэглэх эрхтэй. Гарчиг, тайлбар засах боломжгүй.</span>`;
+    } else if (canEdit.none) {
+      info += `<br><span style="color:var(--danger);font-weight:600;">🔒 Танд засах эрхгүй (зөвхөн харах).</span>`;
+    }
+    creatorInfo.innerHTML = info;
     creatorInfo.style.display = 'block';
   } else {
     creatorInfo.style.display = 'none';
@@ -1818,8 +1870,28 @@ function openTaskModal(id) {
     fillProjectSelect('t-project', null, e.target.value);
     fillAssigneeSelect('t-assignee', state.me, e.target.value);
   };
+
+  // Permission lock — canEdit.all биш бол input-уудыг readonly + Save товчийг нуух
+  const inputIds = ['t-title','t-desc','t-branch','t-project','t-assignee','t-due','t-priority'];
+  inputIds.forEach(iid => {
+    const el = document.getElementById(iid);
+    if (!el) return;
+    if (canEdit.all) {
+      el.removeAttribute('readonly');
+      el.removeAttribute('disabled');
+      el.style.opacity = '';
+    } else {
+      // textarea/input: readonly; select: disabled (Safari doesn't honor readonly on select)
+      if (el.tagName === 'SELECT') el.setAttribute('disabled','disabled');
+      else el.setAttribute('readonly','readonly');
+      el.style.opacity = '0.7';
+    }
+  });
+  const saveBtn = document.getElementById('t-save');
+  if (saveBtn) saveBtn.style.display = canEdit.all ? '' : 'none';
+
   document.getElementById('task-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('t-title').focus(), 50);
+  if (canEdit.all) setTimeout(()=>document.getElementById('t-title').focus(), 50);
 }
 function closeTaskModal() {
   document.getElementById('task-modal').classList.remove('open');

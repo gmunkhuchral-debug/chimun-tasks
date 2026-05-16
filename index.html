@@ -188,6 +188,14 @@
   .task-title { font-weight: 500; cursor: pointer; outline: none; word-break: break-word; }
   .task-title[contenteditable="true"]:focus { background: #fffbe6; padding: 2px 4px; border-radius: 3px; }
   .task-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .delegated-from {
+    color: var(--primary);
+    font-weight: 500;
+    background: var(--primary-soft);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+  }
   .assignee-chip {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 3px 8px; border-radius: 999px; background: #f1f3f5; font-size: 12px;
@@ -561,6 +569,7 @@
 <div class="modal-bg" id="task-modal">
   <div class="modal">
     <h2 id="task-modal-title">Шинэ даалгавар</h2>
+    <div id="t-creator-info" style="display:none; font-size:12px; color:var(--muted); margin:-8px 0 12px; padding:8px 10px; background:#f1f3f5; border-radius:6px;"></div>
     <label>Гарчиг *</label>
     <input id="t-title" placeholder="Жишээ: Хурим - 2026/06/15 - тоног бэлдэх" />
     <label>Тайлбар</label>
@@ -1394,10 +1403,16 @@ function renderRow(t) {
     </div>
     <div class="task-title-wrap">
       <div class="task-title" data-act="edit-title" contenteditable="false">${titleHtml}${extraHtml}</div>
-      <div class="task-meta">${escapeHtml(projectName(t.project))} ${t.desc ? '· '+escapeHtml(t.desc.slice(0,80)) : ''}</div>
+      <div class="task-meta">
+        ${escapeHtml(projectName(t.project))}
+        ${t.createdBy && t.createdBy !== t.assignee
+          ? `· <span class="delegated-from">← ${escapeHtml(memberName(t.createdBy))}</span>`
+          : ''}
+        ${t.desc ? '· '+escapeHtml(t.desc.slice(0,80)) : ''}
+      </div>
     </div>
     <div class="col-assignee">
-      <span class="assignee-chip" data-act="open">
+      <span class="assignee-chip" data-act="open" title="${t.createdBy && t.createdBy !== t.assignee ? escapeHtml(memberName(t.createdBy)) + ' → ' + escapeHtml(memberName(t.assignee)) : 'Өөрөө оноосон'}">
         <span class="avatar">${escapeHtml(memberInitials(t.assignee))}</span>
         ${escapeHtml(memberName(t.assignee))}
       </span>
@@ -1555,6 +1570,18 @@ function openTaskModal(id) {
   const t = id ? state.tasks.find(x=>x.id===id) : null;
   state.editingId = id || null;
   document.getElementById('task-modal-title').textContent = t ? 'Даалгавар засах' : 'Шинэ даалгавар';
+  // Creator info — only shown when editing an existing task
+  const creatorInfo = document.getElementById('t-creator-info');
+  if (t && t.createdBy) {
+    const creator = memberName(t.createdBy);
+    const assignee = memberName(t.assignee);
+    const createdAt = t.created ? new Date(t.created).toLocaleString('mn-MN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    creatorInfo.innerHTML = `📋 <strong>${escapeHtml(creator)}</strong> → <strong>${escapeHtml(assignee)}</strong>` +
+      (createdAt ? ` · ${escapeHtml(createdAt)}` : '');
+    creatorInfo.style.display = 'block';
+  } else {
+    creatorInfo.style.display = 'none';
+  }
   document.getElementById('t-title').value = t?.title || '';
   document.getElementById('t-desc').value = t?.desc || '';
   // Branch — when editing keep its branch; for new tasks default to currently-viewed branch.

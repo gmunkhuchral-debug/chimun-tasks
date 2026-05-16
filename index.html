@@ -835,10 +835,6 @@ let TEAM = [
   { id: 'C06', name: 'Цэлмэг',         role: 'Кемп туслах 1',          level: 40, pin: '3006', email: '',                         branches: ['camp'] },
 ];
 
-// Google OAuth Client ID (project: chimun-tasks). Kept for legacy code paths;
-// PIN auth is the active login method. Safe to ignore.
-const GOOGLE_CLIENT_ID = '885227117000-jqlgvuvakf60ejrqajd4mg0euilh7n1q.apps.googleusercontent.com';
-
 // n8n webhook URL — hardcoded so staff never have to configure anything.
 // Change here + push when the backend moves. Settings panel still lets the user
 // override locally for testing.
@@ -2138,44 +2134,19 @@ function closeMobileSidebar() {
   document.getElementById('sidebar-backdrop')?.classList.remove('open');
 }
 
-/* -------------------- AUTH (Google Sign-In) --------------------
+/* -------------------- AUTH (PIN-based) --------------------
    Flow:
-   1. Page loads → showLoginScreen() unless we have a cached session (<24h old).
-   2. Google Identity Services renders the sign-in button.
-   3. User clicks → Google returns a JWT credential.
-   4. We decode the JWT, extract email, match to TEAM member.
-   5. Match success → setUser() + showApp().
-   6. Match fail → showLoginError() with explanation.
-*/
+   1. Page loads → tryRestoreSession() (cached session <24h) → showApp(),
+      otherwise showLoginScreen() → user picks name + enters 4-digit PIN.
+   2. handlePinLogin() validates against TEAM (loaded from Master Sheet via /staff).
+   3. Match success → setUser() + showApp() + bootApp().
+   Note: Google OAuth removed 2026-05-17 — PIN auth is the only login flow. */
 
-function decodeJwt(token) {
-  // JWT format: header.payload.signature — payload is base64url-encoded JSON
-  try {
-    const payload = token.split('.')[1];
-    // base64url → base64
-    const b64 = payload.replace(/-/g,'+').replace(/_/g,'/');
-    return JSON.parse(decodeURIComponent(escape(atob(b64))));
-  } catch (e) { return null; }
-}
-
-function findTeamMemberByEmail(email) {
-  if (!email) return null;
-  const lower = email.toLowerCase().trim();
-  return TEAM.find(m => {
-    if ((m.email || '').toLowerCase().trim() === lower) return true;
-    // Aliases let one staff member sign in with multiple emails
-    // (e.g. work email + personal Gmail). Order doesn't matter for matching.
-    if (Array.isArray(m.aliases) && m.aliases.some(a => (a || '').toLowerCase().trim() === lower)) return true;
-    return false;
-  });
-}
-
-function setUser(member, googleProfile) {
+function setUser(member, profile) {
   state.user = {
     ...member,
-    email: googleProfile.email,
-    picture: googleProfile.picture || '',
-    googleName: googleProfile.name || member.name,
+    email: profile.email || member.email || '',
+    picture: profile.picture || '',
   };
   state.me = member.id;
   state.isCEO = (member.id === 'CEO');
@@ -2184,26 +2155,9 @@ function setUser(member, googleProfile) {
   if (member.branches && member.branches.length && !member.branches.includes(state.branch)) {
     state.branch = member.branches[0];
   }
-  // Persist a lightweight session — we don't store the JWT, just the matched ID
+  // Persist a lightweight session — just the matched ID
   localStorage.setItem('userId', member.id);
   localStorage.setItem('userLoginAt', String(Date.now()));
-}
-
-function handleCredentialResponse(response) {
-  const payload = decodeJwt(response.credential);
-  if (!payload || !payload.email) {
-    return showLoginError('Google-аас имэйл уншиж чадсангүй. Дахин оролдоорой.');
-  }
-  const member = findTeamMemberByEmail(payload.email);
-  if (!member) {
-    return showLoginError(
-      'Таны имэйл "' + payload.email + '" нь системд бүртгэлгүй байна. ' +
-      'CEO-той холбогдож имэйлээ нэмүүлээрэй.'
-    );
-  }
-  setUser(member, payload);
-  showApp();
-  bootApp();
 }
 
 // Single entry point for fully booting the app once the user is authenticated.
@@ -2275,10 +2229,6 @@ async function logout() {
   state.user = null;
   state.me = null;
   state.isCEO = false;
-  // Disable Google one-tap auto-select on next visit
-  if (window.google && google.accounts && google.accounts.id) {
-    google.accounts.id.disableAutoSelect();
-  }
   location.reload();
 }
 
@@ -2292,7 +2242,7 @@ function tryRestoreSession() {
   const member = TEAM.find(m => m.id === userId);
   if (!member) return false;
   // Restore without picture (we didn't cache it) — user chip will show initials
-  state.user = { ...member, email: member.email, picture: '', googleName: member.name };
+  state.user = { ...member, email: member.email, picture: '' };
   state.me = member.id;
   state.isCEO = (member.id === 'CEO');
   state.myLevel = member.level || 0;

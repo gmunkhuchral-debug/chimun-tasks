@@ -329,6 +329,53 @@
   }
   .user-chip .logout-btn:hover { background: #f1f3f5; color: var(--danger); }
 
+  /* NOTIFICATION BELL + PANEL */
+  .bell-btn { position: relative; padding: 6px 10px; font-size: 16px; }
+  .notif-badge {
+    position: absolute; top: 0px; right: 2px;
+    background: var(--danger); color: #fff;
+    border-radius: 999px; padding: 1px 5px;
+    font-size: 9px; font-weight: 700; line-height: 1;
+    min-width: 16px; text-align: center;
+    border: 1.5px solid #fff;
+  }
+  .notif-panel {
+    position: absolute; top: 66px; right: 16px;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: 0 10px 32px rgba(15,23,42,.18);
+    width: 340px; max-height: 480px;
+    z-index: 90;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .notif-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-weight: 600; font-size: 13px;
+  }
+  .notif-mark-read {
+    background: none; border: none; color: var(--primary);
+    font-size: 11px; cursor: pointer; padding: 4px 6px;
+  }
+  .notif-mark-read:hover { text-decoration: underline; }
+  .notif-list { overflow-y: auto; max-height: 420px; }
+  .notif-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 16px; border-bottom: 1px solid #f1f3f5;
+    cursor: pointer;
+  }
+  .notif-item:hover { background: #fafbfc; }
+  .notif-item.unread { background: var(--primary-soft); }
+  .notif-item.unread:hover { background: #e0e7ff; }
+  .notif-icon { font-size: 18px; flex-shrink: 0; line-height: 1.2; }
+  .notif-body { flex: 1; min-width: 0; }
+  .notif-msg { font-size: 13px; color: var(--text); }
+  .notif-time { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .notif-empty {
+    padding: 32px 16px; text-align: center;
+    color: var(--muted); font-size: 12px;
+  }
+
   /* MOBILE HAMBURGER */
   .mobile-menu-btn {
     display: none;
@@ -471,9 +518,21 @@
         <div class="sub" id="view-sub">Бүх checklist</div>
       </div>
       <div class="header-actions">
+        <button class="btn bell-btn" id="notif-btn" title="Мэдэгдэл" aria-label="Мэдэгдэл">
+          🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span>
+        </button>
         <button class="btn" id="settings-btn">⚙</button>
         <button class="btn" id="new-order-btn" style="display:none" title="5 дамжлагат акт автоматаар үүснэ">📋 Шинэ захиалга</button>
         <button class="btn btn-primary" id="new-task-btn">+ Шинэ</button>
+      </div>
+
+      <!-- Notification panel (popover) -->
+      <div class="notif-panel" id="notif-panel" hidden>
+        <div class="notif-header">
+          <span>Мэдэгдэл</span>
+          <button class="notif-mark-read" id="notif-mark-all">Бүгдийг уншсан</button>
+        </div>
+        <div class="notif-list" id="notif-list"></div>
       </div>
     </div>
 
@@ -698,7 +757,185 @@ const state = {
     staffUrl:  localStorage.getItem('staffUrl')  || DEFAULT_STAFF_URL  || '',
   },
   editingId: null,
+  notifications: [], // {id, type, taskId, msg, ts, read}
 };
+
+/* -------------------- IN-APP NOTIFICATIONS --------------------
+   Client-side generated from task data. 4 төрөл:
+     - assigned     — шинэ task надад оноогдсон
+     - overdue      — миний task хоцорсон
+     - due_today    — миний task өнөөдөр дуусах
+     - stage_unlock — өмнөх дамжлага дуусаад миний дамжлага идэвхжсэн
+   Дахин давтан гаргахгүйн тулд localStorage-д "seen" set хадгална. */
+function loadNotifications() {
+  try {
+    const raw = localStorage.getItem('notifications');
+    state.notifications = raw ? JSON.parse(raw) : [];
+  } catch(e) { state.notifications = []; }
+}
+function saveNotifications() {
+  // Keep only the most recent 50 to avoid localStorage bloat
+  state.notifications = state.notifications.slice(0, 50);
+  localStorage.setItem('notifications', JSON.stringify(state.notifications));
+}
+function generateNotifications() {
+  if (!state.me) return;
+  const today = new Date().toISOString().slice(0,10);
+  const seen = new Set(state.notifications.map(n => n.id));
+  const myTasks = state.tasks.filter(t => t.assignee === state.me && t.status !== 'deleted');
+  const newOnes = [];
+
+  // 1. ASSIGNED — өмнө хараагүй байсан, надад оноогдсон шинэ task
+  const seenAssignedKey = `notif-seen-assigned-${state.me}`;
+  let prevAssigned;
+  try { prevAssigned = new Set(JSON.parse(localStorage.getItem(seenAssignedKey) || '[]')); }
+  catch(e) { prevAssigned = new Set(); }
+  // First run for this user: don't blast notifications for everything that already exists.
+  // Instead just record current state silently.
+  const isFirstRun = prevAssigned.size === 0;
+  myTasks.forEach(t => {
+    if (t.status === 'done') return;
+    if (!prevAssigned.has(t.id)) {
+      if (!isFirstRun) {
+        newOnes.push({
+          id: `assigned-${t.id}`,
+          type: 'assigned',
+          taskId: t.id,
+          msg: `Шинэ даалгавар: ${t.title}`,
+          ts: Date.now(),
+          read: false,
+        });
+      }
+      prevAssigned.add(t.id);
+    }
+  });
+  localStorage.setItem(seenAssignedKey, JSON.stringify([...prevAssigned]));
+
+  // 2. OVERDUE — өдөрт нэг л удаа сануулга
+  myTasks.forEach(t => {
+    if (t.status === 'done') return;
+    if (t.due && t.due < today) {
+      const nid = `overdue-${t.id}-${today}`;
+      if (!seen.has(nid)) {
+        newOnes.push({
+          id: nid,
+          type: 'overdue',
+          taskId: t.id,
+          msg: `Хоцорсон: ${t.title}`,
+          ts: Date.now(),
+          read: false,
+        });
+      }
+    }
+  });
+
+  // 3. DUE TODAY — өдөрт нэг л удаа
+  myTasks.forEach(t => {
+    if (t.status === 'done') return;
+    if (t.due === today) {
+      const nid = `today-${t.id}-${today}`;
+      if (!seen.has(nid)) {
+        newOnes.push({
+          id: nid,
+          type: 'due_today',
+          taskId: t.id,
+          msg: `Өнөөдөр дуусах: ${t.title}`,
+          ts: Date.now(),
+          read: false,
+        });
+      }
+    }
+  });
+
+  // 4. STAGE UNLOCK — миний sub-task lock-оос гарсан
+  myTasks.filter(t => t.kind === 'act_stage' && t.parent_id && Number(t.stage) > 1).forEach(t => {
+    if (t.status !== 'open') return;
+    const prev = state.tasks.find(x =>
+      x.parent_id === t.parent_id && Number(x.stage) === Number(t.stage) - 1
+    );
+    if (prev && prev.status === 'done') {
+      const nid = `unlock-${t.id}`;
+      if (!seen.has(nid)) {
+        newOnes.push({
+          id: nid,
+          type: 'stage_unlock',
+          taskId: t.id,
+          msg: `Дамжлага идэвхжсэн: ${t.title}`,
+          ts: Date.now(),
+          read: false,
+        });
+      }
+    }
+  });
+
+  if (newOnes.length) {
+    state.notifications = [...newOnes, ...state.notifications];
+    saveNotifications();
+    renderNotifications();
+  }
+}
+function unreadCount() {
+  return state.notifications.filter(n => !n.read).length;
+}
+function markAllNotificationsRead() {
+  state.notifications.forEach(n => n.read = true);
+  saveNotifications();
+  renderNotifications();
+}
+function renderNotifications() {
+  const count = unreadCount();
+  const badge = document.getElementById('notif-badge');
+  if (badge) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = count > 0 ? '' : 'none';
+  }
+  const list = document.getElementById('notif-list');
+  if (!list) return;
+  if (!state.notifications.length) {
+    list.innerHTML = '<div class="notif-empty">Мэдэгдэл алга байна.</div>';
+    return;
+  }
+  const icons = {
+    assigned: '📥',
+    overdue: '⚠️',
+    due_today: '📅',
+    stage_unlock: '✅',
+  };
+  list.innerHTML = state.notifications.map(n => {
+    const ago = notifTimeAgo(n.ts);
+    return `
+      <div class="notif-item ${n.read ? '' : 'unread'}" data-task-id="${escapeHtml(n.taskId)}" data-notif-id="${escapeHtml(n.id)}">
+        <div class="notif-icon">${icons[n.type] || '🔔'}</div>
+        <div class="notif-body">
+          <div class="notif-msg">${escapeHtml(n.msg)}</div>
+          <div class="notif-time">${ago}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  list.querySelectorAll('.notif-item').forEach(el => {
+    el.onclick = () => {
+      const taskId = el.dataset.taskId;
+      const notifId = el.dataset.notifId;
+      const n = state.notifications.find(x => x.id === notifId);
+      if (n) { n.read = true; saveNotifications(); }
+      document.getElementById('notif-panel').hidden = true;
+      if (taskId) openTaskModal(taskId);
+      renderNotifications();
+    };
+  });
+}
+function notifTimeAgo(ts) {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'сая';
+  if (min < 60) return `${min} мин өмнө`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} цаг өмнө`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day} өдөр өмнө`;
+  return new Date(ts).toLocaleDateString('mn-MN');
+}
 
 /* -------------------- STAFF SYNC --------------------
    TEAM (above) is the hardcoded fallback. At startup we load fresher data from:
@@ -1067,6 +1304,7 @@ function render() {
   renderTitle();
   renderTaskList();
   renderCounts();
+  renderNotifications();
 }
 function renderSidebar() {
   // active nav
@@ -1500,6 +1738,21 @@ function initEvents() {
   // Logout button
   document.getElementById('logout-btn')?.addEventListener('click', logout);
 
+  // Notification bell — toggle panel
+  const notifBtn = document.getElementById('notif-btn');
+  const notifPanel = document.getElementById('notif-panel');
+  notifBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    notifPanel.hidden = !notifPanel.hidden;
+    if (!notifPanel.hidden) renderNotifications();
+  });
+  document.addEventListener('click', (e) => {
+    if (!notifPanel.hidden && !notifPanel.contains(e.target) && e.target !== notifBtn) {
+      notifPanel.hidden = true;
+    }
+  });
+  document.getElementById('notif-mark-all')?.addEventListener('click', markAllNotificationsRead);
+
   // close modal on bg click
   document.querySelectorAll('.modal-bg').forEach(bg => {
     bg.addEventListener('click', (e) => { if (e.target === bg) bg.classList.remove('open'); });
@@ -1607,13 +1860,30 @@ function handleCredentialResponse(response) {
 // Single entry point for fully booting the app once the user is authenticated.
 // Safe to call multiple times — initEvents is idempotent because we check _eventsBound.
 let _eventsBound = false;
+let _pollTimer = null;
 async function bootApp() {
   if (!_eventsBound) {
     initEvents();
     _eventsBound = true;
   }
+  loadNotifications();
   await loadData();
+  generateNotifications();
   render();
+  // Auto-refresh every 60s — pulls latest tasks from n8n + generates fresh notifications.
+  // When the tab is hidden (phone locked, app backgrounded) we still keep ticking so the
+  // user gets a fresh badge the moment they open it.
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(async () => {
+    try {
+      await loadData();
+      generateNotifications();
+      // Don't full-render every 60s — just update the badge + (if open) the panel.
+      renderNotifications();
+      // If user is sitting on the task list, refresh counts so overdue/today move correctly.
+      renderCounts();
+    } catch(e) { console.warn('Auto-poll failed:', e); }
+  }, 60_000);
 }
 
 function showLoginError(msg) {
@@ -1647,8 +1917,12 @@ function renderUserChip() {
 
 function logout() {
   if (!confirm('Гарах уу?')) return;
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   localStorage.removeItem('userId');
   localStorage.removeItem('userLoginAt');
+  // Notification "seen" state is per-user — clear so next user doesn't see this user's history
+  localStorage.removeItem('notifications');
+  state.notifications = [];
   state.user = null;
   state.me = null;
   state.isCEO = false;

@@ -1600,7 +1600,8 @@ function openFinanceModal(id = null) {
     [...modal.querySelectorAll('input, textarea')].forEach(el => el.setAttribute('readonly','readonly'));
     document.getElementById('f-save').style.display = 'none';
 
-    // Decision banner
+    // Decision banner — хоосон утга бол 'pending' гэж тооцох (Sheet sync-аас буцаж ирэхэд decision талбар хоосон байх магадлалтай)
+    const dec = t.decision || 'pending';
     const requester = memberName(t.createdBy);
     const decisionLabels = {
       pending:  { bg:'#fef3c7', col:'#92400e', icon:'🕐', text:'Хүлээгдэж буй' },
@@ -1608,7 +1609,7 @@ function openFinanceModal(id = null) {
       rejected: { bg:'#fee2e2', col:'#991b1b', icon:'✗',  text:'Татгалзсан' },
       deferred: { bg:'#e0e7ff', col:'#3730a3', icon:'🕐', text:'Хойшлогдсон' },
     };
-    const d = decisionLabels[t.decision] || decisionLabels.pending;
+    const d = decisionLabels[dec] || decisionLabels.pending;
     let info = `<div style="background:${d.bg};color:${d.col};padding:8px 12px;border-radius:6px;font-weight:600;">${d.icon} ${d.text}</div>`;
     info += `<div style="margin-top:6px;color:var(--muted);">Илгээгч: <strong>${escapeHtml(requester)}</strong>`;
     if (t.decision_by) info += ` · Шийдвэр гаргасан: <strong>${escapeHtml(memberName(t.decision_by))}</strong>`;
@@ -1617,11 +1618,11 @@ function openFinanceModal(id = null) {
     decisionInfo.innerHTML = info;
     decisionInfo.style.display = 'block';
 
-    // Show appropriate actions
-    if (t.decision === 'pending' && state.isCEO) {
+    // Show appropriate actions — хоосон decision нь 'pending' гэж тооцогдоно
+    if (dec === 'pending' && state.isCEO) {
       submitActions.style.display = 'none';
       decisionActions.style.display = 'flex';
-    } else if (t.decision === 'approved' && t.status !== 'done' && (state.me === FINANCE_EXECUTOR_ID || state.isCEO)) {
+    } else if (dec === 'approved' && t.status !== 'done' && (state.me === FINANCE_EXECUTOR_ID || state.isCEO)) {
       submitActions.style.display = 'none';
       executeActions.style.display = 'flex';
     } else {
@@ -1906,9 +1907,9 @@ function renderRow(t) {
       rejected: '<span class="finance-pill rejected">✗ Татгалзсан</span>',
       deferred: '<span class="finance-pill deferred">🕐 Хойшлогдсон</span>',
     };
-    const pill = decisionPills[t.decision] || decisionPills.pending;
+    const pill = decisionPills[t.decision || 'pending'] || decisionPills.pending;
     extraHtml += pill;
-    if (t.status === 'done' && t.decision === 'approved') {
+    if (t.status === 'done' && (t.decision === 'approved' || t.executed_at)) {
       extraHtml += '<span class="finance-pill executed">💵 Гүйцэтгэсэн</span>';
     }
   }

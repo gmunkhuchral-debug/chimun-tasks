@@ -609,6 +609,9 @@
     <div class="nav-item" data-view="mine">
       <span>Миний</span><span class="count-badge" id="cnt-mine">0</span>
     </div>
+    <div class="nav-item" data-view="delegated">
+      <span>Үүргэсэн</span><span class="count-badge" id="cnt-delegated">0</span>
+    </div>
     <div class="nav-item" data-view="overdue">
       <span>Хоцорсон</span><span class="count-badge" id="cnt-overdue">0</span>
     </div>
@@ -1038,7 +1041,22 @@ function generateNotifications() {
     }
   });
 
-  // 4. STAGE UNLOCK — миний sub-task lock-оос гарсан
+  // 4. DELEGATED TASK COMPLETED — миний үүргэсэн ажилаа хариуцагч дуусгасан
+  state.tasks.filter(t => t.createdBy === state.me && t.assignee !== state.me && t.status === 'done').forEach(t => {
+    const nid = `delegated-done-${t.id}`;
+    if (!seen.has(nid)) {
+      newOnes.push({
+        id: nid,
+        type: 'stage_unlock', // re-use green icon
+        taskId: t.id,
+        msg: `${memberName(t.assignee)} дуусгасан: ${t.title}`,
+        ts: Date.now(),
+        read: false,
+      });
+    }
+  });
+
+  // 5. STAGE UNLOCK — миний sub-task lock-оос гарсан
   myTasks.filter(t => t.kind === 'act_stage' && t.parent_id && Number(t.stage) > 1).forEach(t => {
     if (t.status !== 'open') return;
     const prev = state.tasks.find(x =>
@@ -1445,12 +1463,16 @@ function taskBranch(t) {
 }
 function filteredTasks() {
   let list = [...state.tasks];
-  // ACCESS CONTROL — non-CEO users see ONLY tasks assigned to themselves,
-  // PLUS the parent of any 5-stage act they're a sub-task on (so they see
-  // the order context — customer name, event date — not just their stage).
+  // ACCESS CONTROL — non-CEO users see:
+  //   (1) tasks assigned to themselves (өөрийн хариуцах ажил),
+  //   (2) tasks they created and assigned to others (өөрийн үүргэсэн ажил),
+  //   (3) parent of any 5-stage act sub-task they're on (context).
+  // CEO sees everything.
   if (!state.isCEO && state.me) {
     const allowed = new Set();
-    state.tasks.forEach(t => { if (t.assignee === state.me) allowed.add(t.id); });
+    state.tasks.forEach(t => {
+      if (t.assignee === state.me || t.createdBy === state.me) allowed.add(t.id);
+    });
     // Include parent of any allowed sub-task
     state.tasks.forEach(t => {
       if (t.parent_id && allowed.has(t.id)) allowed.add(t.parent_id);
@@ -1467,6 +1489,7 @@ function filteredTasks() {
   // view
   const today = new Date().toISOString().slice(0,10);
   if (state.view === 'mine') list = list.filter(t => t.assignee === state.me);
+  else if (state.view === 'delegated') list = list.filter(t => t.createdBy === state.me && t.assignee !== state.me);
   else if (state.view === 'overdue') list = list.filter(t => t.status === 'open' && t.due && t.due < today);
   else if (state.view === 'today') list = list.filter(t => t.due === today);
   else if (state.view === 'done') list = list.filter(t => t.status === 'done');
@@ -1555,7 +1578,8 @@ function renderSidebar() {
 function renderTitle() {
   const titles = {
     all: ['Бүгд','Бүх checklist'],
-    mine: ['Миний даалгаврууд', memberName(state.me)],
+    mine: ['Миний даалгаврууд', 'Танд оноосон ажлууд'],
+    delegated: ['Үүргэсэн', 'Та өөр хүнд хариуцуулсан ажлууд'],
     overdue: ['Хоцорсон','Эцсийн хугацаа өнгөрсөн'],
     today: ['Өнөөдөр','Өнөөдөр дуусах ёстой'],
     done: ['Дууссан','Биелсэн даалгаврууд'],
@@ -1583,6 +1607,7 @@ function emptyStateHtml() {
   let icon = '📋', title = 'Даалгавар алга', sub = '+ Шинэ дарж нэмнэ үү';
   const v = state.view;
   if (v === 'mine')     { icon = '🎯'; title = 'Танд оноосон ажил алга'; sub = 'Бүх ажилаа дуусгасан байна. Сайн байна!'; }
+  else if (v === 'delegated') { icon = '📤'; title = 'Үүргэсэн ажил алга'; sub = 'Та өөр хүнд хариуцуулсан ажил байхгүй байна. + Шинэ дарж оноо.'; }
   else if (v === 'overdue') { icon = '🎉'; title = 'Хоцорсон даалгавар алга'; sub = 'Бүх хугацаа дотроо явж байна.'; }
   else if (v === 'today')   { icon = '☕'; title = 'Өнөөдөр дуусах юм алга'; sub = 'Тайван өдөр болж байна.'; }
   else if (v === 'done')    { icon = '🗂'; title = 'Дууссан ажил алга'; sub = 'Шинэ ажилаа эхлээрэй.'; }
@@ -1711,6 +1736,7 @@ function renderCounts() {
   const branchTasks = accessible.filter(inBranch);
   document.getElementById('cnt-all').textContent     = branchTasks.filter(t => t.status !== 'done').length;
   document.getElementById('cnt-mine').textContent    = accessible.filter(t => t.assignee === state.me && t.status !== 'done').length;
+  document.getElementById('cnt-delegated').textContent = accessible.filter(t => t.createdBy === state.me && t.assignee !== state.me && t.status !== 'done').length;
   document.getElementById('cnt-overdue').textContent = branchTasks.filter(t => t.status !== 'done' && t.due && t.due < today).length;
   document.getElementById('cnt-today').textContent   = branchTasks.filter(t => t.due === today).length;
   document.getElementById('cnt-done').textContent    = branchTasks.filter(t => t.status === 'done').length;

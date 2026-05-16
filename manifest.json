@@ -1,0 +1,56 @@
+{
+  "name": "Чимун ХХК · Дотоод даалгавар",
+  "short_name": "Чимун Tasks",
+  "description": "Чимун ХХК-ийн дотоод даалгавар, KPI, актын урсгалын систем. M Event, NOMAAD Camp, Store, Нэгдсэн алба бүлэгт зориулсан.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f6f7f9",
+  "theme_color": "#4f46e5",
+  "lang": "mn",
+  "dir": "ltr",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Шинэ даалгавар",
+      "short_name": "+ Task",
+      "description": "Шинэ даалгавар үүсгэх",
+      "url": "./?action=new",
+      "icons": [{ "src": "icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Миний даалгавар",
+      "short_name": "Миний",
+      "description": "Миний даалгавруудыг харах",
+      "url": "./?view=mine",
+      "icons": [{ "src": "icon.svg", "sizes": "any" }]
+    }
+  ]
+}

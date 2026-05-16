@@ -1,0 +1,212 @@
+{
+  "name": "Чимун Tasks · Sync (Google Sheets)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "checklist",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-post",
+      "name": "Webhook POST /checklist",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "checklist",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-get",
+      "name": "Webhook GET /checklist",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine action and pull task payload.\n// GET → action defaults to 'list' (no body).\n// POST → action is in body { action: 'upsert' | 'delete', task: {...} }.\nconst input = $input.first().json;\nconst body = input.body || {};\nconst query = input.query || {};\nconst action = (body.action || query.action || 'list').toLowerCase();\nconst task = body.task || null;\nreturn [{ json: { action, task } }];"
+      },
+      "id": "code-route",
+      "name": "Route Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "list", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "outputKey": "list" },
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "upsert", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "outputKey": "upsert" },
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "delete", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "outputKey": "delete" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-action",
+      "name": "Switch by Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": { "__rl": true, "value": "REPLACE_WITH_GOOGLE_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "tasks", "mode": "name" },
+        "options": {}
+      },
+      "id": "sheets-read",
+      "name": "Sheets · Read All",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [900, 100],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all rows into a single array. Skip rows marked status='deleted'.\nconst rows = $input.all().map(it => it.json);\nconst tasks = rows.filter(r => r && r.id && r.status !== 'deleted');\nreturn [{ json: { tasks } }];"
+      },
+      "id": "code-aggregate",
+      "name": "Aggregate Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 100]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "__rl": true, "value": "REPLACE_WITH_GOOGLE_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "tasks", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["id"],
+          "value": {
+            "id": "={{ $('Route Action').item.json.task.id }}",
+            "title": "={{ $('Route Action').item.json.task.title }}",
+            "desc": "={{ $('Route Action').item.json.task.desc }}",
+            "branch": "={{ $('Route Action').item.json.task.branch }}",
+            "project": "={{ $('Route Action').item.json.task.project }}",
+            "assignee": "={{ $('Route Action').item.json.task.assignee }}",
+            "co_assignees": "={{ ($('Route Action').item.json.task.co_assignees || []).join(',') }}",
+            "due": "={{ $('Route Action').item.json.task.due }}",
+            "priority": "={{ $('Route Action').item.json.task.priority }}",
+            "status": "={{ $('Route Action').item.json.task.status }}",
+            "kpi_code": "={{ $('Route Action').item.json.task.kpi_code }}",
+            "createdBy": "={{ $('Route Action').item.json.task.createdBy }}",
+            "created": "={{ $('Route Action').item.json.task.created }}",
+            "updated": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheets-upsert",
+      "name": "Sheets · Upsert",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [900, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// For delete, build a soft-delete payload: same task with status='deleted'.\n// We'll pipe this into appendOrUpdate just like upsert.\nconst t = $('Route Action').item.json.task;\nif (!t || !t.id) return [];\nreturn [{ json: { task: { ...t, status: 'deleted' } } }];"
+      },
+      "id": "code-delete-prep",
+      "name": "Mark As Deleted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "__rl": true, "value": "REPLACE_WITH_GOOGLE_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "tasks", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["id"],
+          "value": {
+            "id": "={{ $json.task.id }}",
+            "status": "deleted",
+            "updated": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheets-soft-delete",
+      "name": "Sheets · Soft Delete",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1120, 500],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" }
+            ]
+          }
+        }
+      },
+      "id": "respond-list",
+      "name": "Respond List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, task: $('Route Action').item.json.task }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" }
+            ]
+          }
+        }
+      },
+      "id": "respond-write",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 400]
+    }
+  ],
+  "connections": {
+    "Webhook GET /checklist":  { "main": [[{ "node": "Route Action", "type": "main", "index": 0 }]] },
+    "Webhook POST /checklist": { "main": [[{ "node": "Route Action", "type": "main", "index": 0 }]] },
+    "Route Action":            { "main": [[{ "node": "Switch by Action", "type": "main", "index": 0 }]] },
+    "Switch by Action": {
+      "main": [
+        [{ "node": "Sheets · Read All",   "type": "main", "index": 0 }],
+        [{ "node": "Sheets · Upsert",     "type": "main", "index": 0 }],
+        [{ "node": "Mark As Deleted",     "type": "main", "index": 0 }]
+      ]
+    },
+    "Sheets · Read All":   { "main": [[{ "node": "Aggregate Tasks", "type": "main", "index": 0 }]] },
+    "Aggregate Tasks":     { "main": [[{ "node": "Respond List", "type": "main", "index": 0 }]] },
+    "Sheets · Upsert":     { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] },
+    "Mark As Deleted":     { "main": [[{ "node": "Sheets · Soft Delete", "type": "main", "index": 0 }]] },
+    "Sheets · Soft Delete":{ "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "chimun-tasks" }]
+}

@@ -1,0 +1,45 @@
+# macOS системийн файл
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local session/temp
+*.log
+.env
+.env.local
+.env.*.local
+
+# Secrets — хэрэв ирээдүйд n8n credentials г.м.-ийг repo-д хадгалах гэвэл энд тавина
+secrets/
+credentials/
+*.key
+*.pem
+
+# Node (хэрэв build tool хэрэглэвэл)
+node_modules/
+dist/
+build/
+.cache/
+
+# Backup файл (manual save хийсэн хуучин хувилбарууд)
+*.bak
+*-backup.*
+*-old.*
+
+# Sub-project өөрийн git repo-той тул bypass
+m-event-website/.git/index.lock
+
+# Temp / scratch
+tmp/
+scratch/
+
+# Sub-project (өөрийн git-тэй marketing site)
+m-event-website/

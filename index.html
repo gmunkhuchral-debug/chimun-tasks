@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Чимун ХХК · Дотоод даалгавар</title>
+
+<!-- PWA / installable on phone home screen -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#4f46e5" />
+<link rel="icon" type="image/svg+xml" href="icon.svg" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<!-- iOS Safari "Add to Home Screen" → looks like a real app -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Чимун Tasks" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="application-name" content="Чимун Tasks" />
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #e6e8eb;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --primary: #4f46e5;
+    --primary-soft: #eef2ff;
+    --danger: #dc2626;
+    --warn: #d97706;
+    --ok: #16a34a;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .app { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px 14px;
+    overflow-y: auto;
+  }
+  .brand {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: .2px;
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .brand .dot { width: 22px; height: 22px; border-radius: 6px; background: var(--primary); display:inline-block; }
+  .section-label {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: .8px;
+    color: var(--muted);
+    margin: 16px 6px 6px;
+  }
+  .nav-item, .project-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text);
+    user-select: none;
+  }
+  .nav-item:hover, .project-item:hover { background: #f1f3f5; }
+  .nav-item.active, .project-item.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+  .count-badge {
+    background: #eef0f3; color: var(--muted); font-size: 11px;
+    padding: 1px 7px; border-radius: 10px; min-width: 18px; text-align: center;
+  }
+  .nav-item.active .count-badge, .project-item.active .count-badge { background: #fff; color: var(--primary); }
+  .add-project { color: var(--muted); cursor: pointer; padding: 7px 10px; font-size: 13px; }
+  .add-project:hover { color: var(--primary); }
+  .who-am-i, .branch-switcher {
+    margin-top: 14px; padding: 10px; background: #fafbfc; border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .who-am-i label, .branch-switcher label { font-size: 11px; color: var(--muted); display:block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .6px;}
+  .who-am-i select, .branch-switcher select { width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: #fff; font-size: 13px; }
+  .branch-switcher { margin-top: 4px; background: var(--primary-soft); border-color: #d8defc; }
+  .branch-switcher select { font-weight: 600; color: var(--primary); }
+  /* MAIN */
+  .main { display: flex; flex-direction: column; overflow: hidden; }
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 28px; border-bottom: 1px solid var(--border); background: #fff;
+  }
+  .header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+  .header .sub { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    border: 1px solid var(--border); background: #fff; padding: 7px 13px; border-radius: 7px;
+    font-size: 13px; cursor: pointer; color: var(--text);
+  }
+  .btn:hover { background: #f6f7f9; }
+  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+  .btn-primary:hover { background: #4338ca; }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 28px; background: #fff; border-bottom: 1px solid var(--border);
+  }
+  .filter-pill {
+    border: 1px solid var(--border); background: #fff; padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; color: var(--muted); cursor: pointer;
+  }
+  .filter-pill.active { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-soft); font-weight: 600; }
+  .search { flex: 1; max-width: 280px; }
+  .search input {
+    width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
+  }
+  /* TASKS */
+  .tasks {
+    flex: 1; overflow-y: auto; padding: 0 28px 80px;
+  }
+  .table-head {
+    display: grid;
+    grid-template-columns: 26px 1fr 160px 130px 110px 36px;
+    padding: 10px 8px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg); z-index: 1;
+  }
+  .task-row {
+    display: grid;
+    grid-template-columns: 26px 1fr 160px 130px 110px 36px;
+    align-items: center;
+    padding: 10px 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 6px 0;
+    box-shadow: var(--shadow);
+    transition: opacity .2s;
+  }
+  .task-row.completed .task-title { text-decoration: line-through; color: var(--muted); }
+  .task-row.completed { opacity: 0.7; }
+  /* 5-stage act parent — highlighted card */
+  .task-row.act-parent {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+  }
+  .task-row.act-parent .task-title { font-weight: 700; }
+  .act-progress {
+    font-size: 11px; color: var(--primary); font-weight: 600;
+    background: #fff; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid #c7d2fe;
+    margin-left: 8px; white-space: nowrap;
+  }
+  /* sub-task — indented under its parent */
+  .task-row.subtask { margin-left: 28px; background: #fafbfc; }
+  .stage-badge {
+    display: inline-block;
+    background: var(--primary-soft); color: var(--primary);
+    font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
+    margin-right: 6px; letter-spacing: .3px;
+  }
+  /* locked sub-task — previous stage not done yet */
+  .task-row.locked-stage { opacity: 0.55; }
+  .task-row.locked-stage .checkbox {
+    cursor: not-allowed; background: #f1f3f5; border-color: #e6e8eb;
+  }
+  .task-row.locked-stage .task-title { color: var(--muted); }
+  .stage-locked-hint {
+    font-size: 10px; color: var(--warn); font-weight: 600;
+    background: #fef3c7; padding: 2px 6px; border-radius: 4px;
+    margin-left: 6px;
+  }
+  .checkbox {
+    width: 18px; height: 18px; border: 2px solid #cfd4da; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    background: #fff;
+  }
+  .checkbox.checked { background: var(--ok); border-color: var(--ok); }
+  .checkbox.checked::after { content: "✓"; color: #fff; font-size: 11px; font-weight: bold; }
+  .task-title-wrap { display: flex; flex-direction: column; min-width: 0; }
+  .task-title { font-weight: 500; cursor: pointer; outline: none; word-break: break-word; }
+  .task-title[contenteditable="true"]:focus { background: #fffbe6; padding: 2px 4px; border-radius: 3px; }
+  .task-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .assignee-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 8px; border-radius: 999px; background: #f1f3f5; font-size: 12px;
+    cursor: pointer;
+  }
+  .assignee-chip .avatar {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--primary); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+  }
+  .due {
+    font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #f1f3f5; color: var(--muted);
+    display: inline-block; cursor: pointer;
+  }
+  .due.overdue { background: #fee2e2; color: var(--danger); font-weight: 600; }
+  .due.soon { background: #fef3c7; color: var(--warn); font-weight: 600; }
+  .priority {
+    font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .4px;
+  }
+  .priority.high { background: #fee2e2; color: var(--danger); }
+  .priority.med { background: #fef3c7; color: var(--warn); }
+  .priority.low { background: #dcfce7; color: var(--ok); }
+  .priority.none { background: #f1f3f5; color: var(--muted); }
+  .delete-btn {
+    border: none; background: none; color: var(--muted); cursor: pointer; font-size: 16px; opacity: 0;
+  }
+  .task-row:hover .delete-btn { opacity: 1; }
+  .delete-btn:hover { color: var(--danger); }
+  /* Locked tasks (created by higher-rank) — show a lock icon instead of delete */
+  .delete-btn.locked { cursor: not-allowed; }
+  .delete-btn.locked:hover { color: var(--muted); }
+  .add-task-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px; border: 2px dashed var(--border); border-radius: 8px; margin: 12px 0;
+    color: var(--muted); cursor: pointer;
+  }
+  .add-task-row:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+  .add-task-row input {
+    flex: 1; border: none; outline: none; background: transparent; font-size: 14px;
+  }
+  .empty {
+    text-align: center; color: var(--muted); padding: 80px 20px;
+  }
+  .empty .icon { font-size: 40px; margin-bottom: 10px; }
+  /* CONNECTION STATUS */
+  .conn-status {
+    position: fixed; bottom: 14px; right: 18px; padding: 6px 12px; border-radius: 999px;
+    font-size: 11px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow);
+    color: var(--muted); display: flex; align-items: center; gap: 6px;
+  }
+  .conn-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .conn-status.online .dot { background: var(--ok); }
+  .conn-status.offline .dot { background: var(--warn); }
+  /* MODAL */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none;
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 12px; padding: 24px; width: 92%; max-width: 480px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.2);
+  }
+  .modal h2 { margin: 0 0 14px; font-size: 17px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .modal input, .modal select, .modal textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px;
+  }
+  .modal textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+  /* LOGIN SCREEN — full-page overlay shown until authenticated */
+  .login-screen {
+    position: fixed; inset: 0; z-index: 200;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px; color: #fff; text-align: center;
+  }
+  .login-screen.hidden { display: none; }
+  .login-card {
+    background: #fff; color: var(--text); border-radius: 16px;
+    padding: 36px 28px; max-width: 380px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  }
+  .login-logo {
+    width: 64px; height: 64px; margin: 0 auto 18px;
+    background: var(--primary); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; color: #fff;
+  }
+  .login-card h1 { margin: 0 0 8px; font-size: 22px; }
+  .login-card .login-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; line-height: 1.5; }
+  #pin-login-form { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .login-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin: 14px 0 4px; text-align: left; }
+  #login-user-select, #login-pin-input {
+    width: 100%; padding: 12px 14px; font-size: 16px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: #fff; color: var(--text);
+    -webkit-appearance: none; appearance: none;
+  }
+  #login-pin-input { letter-spacing: 8px; text-align: center; font-weight: 600; }
+  #login-user-select:focus, #login-pin-input:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
+  .login-submit {
+    width: 100%; margin-top: 18px; padding: 13px 18px;
+    background: var(--primary); color: #fff; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background .15s ease;
+  }
+  .login-submit:hover { background: #4338ca; }
+  .login-submit:active { transform: scale(.98); }
+  .login-error {
+    background: #fee2e2; color: var(--danger); padding: 10px 14px;
+    border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; text-align: left;
+  }
+  .login-error.show { display: block; }
+  .login-footer { font-size: 11px; color: var(--muted); margin-top: 18px; line-height: 1.5; }
+  .login-config-warning {
+    background: #fef3c7; color: var(--warn); padding: 12px 14px; border-radius: 8px;
+    font-size: 12px; margin-bottom: 16px; text-align: left; line-height: 1.5;
+  }
+
+  /* User chip in sidebar (replaces "Би хэн бэ?" dropdown) */
+  .user-chip {
+    margin-top: 12px; padding: 10px; background: #fafbfc; border: 1px solid var(--border);
+    border-radius: 8px; display: flex; align-items: center; gap: 10px;
+  }
+  .user-chip .avatar {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
+    flex-shrink: 0; overflow: hidden;
+  }
+  .user-chip .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .user-chip .meta { flex: 1; min-width: 0; }
+  .user-chip .meta .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-chip .meta .role { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-chip .logout-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer; padding: 6px;
+    border-radius: 6px;
+  }
+  .user-chip .logout-btn:hover { background: #f1f3f5; color: var(--danger); }
+
+  /* MOBILE HAMBURGER */
+  .mobile-menu-btn {
+    display: none;
+    background: none; border: none; cursor: pointer;
+    padding: 4px 8px; margin-right: 6px;
+    font-size: 22px; line-height: 1; color: var(--text);
+  }
+  .sidebar-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.4); z-index: 90;
+  }
+  .sidebar-backdrop.open { display: block; }
+
+  @media (max-width: 720px) {
+    .app { grid-template-columns: 1fr; }
+
+    /* Sidebar slides in from the left as a drawer */
+    .sidebar {
+      position: fixed; left: 0; top: 0; bottom: 0; width: 84%; max-width: 320px;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      box-shadow: 2px 0 24px rgba(15,23,42,.12);
+      display: block;
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    .mobile-menu-btn { display: inline-flex; }
+
+    /* Header tightens on phones */
+    .header { padding: 12px 14px; }
+    .header h1 { font-size: 17px; }
+    .header .sub { font-size: 11px; }
+    .header-actions .btn { padding: 6px 10px; font-size: 12px; }
+
+    /* Toolbar: allow wrap so search drops to its own line */
+    .toolbar { padding: 10px 14px; flex-wrap: wrap; gap: 6px; }
+    .search { flex: 1 1 100%; max-width: 100%; }
+
+    .tasks { padding: 0 12px 100px; }
+    .table-head { display: none; }
+    .task-row {
+      grid-template-columns: 26px 1fr 30px;
+      row-gap: 6px; padding: 12px 10px;
+    }
+    .task-row .col-assignee, .task-row .col-due, .task-row .col-priority {
+      grid-column: 2 / 3; padding-left: 0;
+    }
+    .delete-btn { opacity: 1; } /* always show on touch — no hover */
+
+    /* Connection chip stays visible but smaller */
+    .conn-status { bottom: 10px; right: 10px; font-size: 10px; padding: 4px 8px; }
+
+    /* Modal full-screen on phones for easier typing */
+    .modal { width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+      border-radius: 0; display: flex; flex-direction: column; padding: 20px 18px 28px; overflow-y: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN — shown until authenticated -->
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">✓</div>
+    <h1>Чимун ХХК · Дотоод даалгавар</h1>
+    <p class="login-sub">Нэрээ сонгож PIN кодоо оруулна уу</p>
+
+    <form id="pin-login-form" autocomplete="off">
+      <label class="login-label">Хэн бэ?</label>
+      <select id="login-user-select" required></select>
+
+      <label class="login-label">PIN код (4 орон)</label>
+      <input id="login-pin-input" type="tel" inputmode="numeric" pattern="[0-9]{4}"
+             maxlength="4" minlength="4" required autocomplete="off"
+             placeholder="● ● ● ●" />
+
+      <button type="submit" class="login-submit">Нэвтрэх</button>
+    </form>
+
+    <div class="login-error" id="login-error"></div>
+
+    <div class="login-footer">
+      PIN кодоо мартсан/мэдэхгүй бол CEO-той холбогдоно уу.
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app" style="display: none;">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> <span id="brand-text">Чимун ХХК</span></div>
+
+    <div class="branch-switcher">
+      <label for="branch-select">Бүлэг</label>
+      <select id="branch-select"></select>
+    </div>
+
+    <div class="section-label">View</div>
+    <div class="nav-item active" data-view="all">
+      <span>Бүгд</span><span class="count-badge" id="cnt-all">0</span>
+    </div>
+    <div class="nav-item" data-view="mine">
+      <span>Миний</span><span class="count-badge" id="cnt-mine">0</span>
+    </div>
+    <div class="nav-item" data-view="overdue">
+      <span>Хоцорсон</span><span class="count-badge" id="cnt-overdue">0</span>
+    </div>
+    <div class="nav-item" data-view="today">
+      <span>Өнөөдөр</span><span class="count-badge" id="cnt-today">0</span>
+    </div>
+    <div class="nav-item" data-view="done">
+      <span>Дууссан</span><span class="count-badge" id="cnt-done">0</span>
+    </div>
+
+    <div class="section-label">Төслүүд</div>
+    <div id="project-list"></div>
+    <div class="add-project" id="add-project">+ Шинэ төсөл</div>
+
+    <!-- User chip — populated after Google sign-in -->
+    <div class="user-chip" id="user-chip">
+      <div class="avatar" id="user-avatar">?</div>
+      <div class="meta">
+        <div class="name" id="user-name">—</div>
+        <div class="role" id="user-role">—</div>
+      </div>
+      <button class="logout-btn" id="logout-btn" title="Гарах" aria-label="Гарах">⎋</button>
+    </div>
+  </aside>
+
+  <!-- Mobile sidebar backdrop -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="header">
+      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Цэс нээх">☰</button>
+      <div style="flex:1; min-width:0;">
+        <h1 id="view-title">Бүгд</h1>
+        <div class="sub" id="view-sub">Бүх checklist</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn" id="settings-btn">⚙</button>
+        <button class="btn" id="new-order-btn" style="display:none" title="5 дамжлагат акт автоматаар үүснэ">📋 Шинэ захиалга</button>
+        <button class="btn btn-primary" id="new-task-btn">+ Шинэ</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="filter-pill active" data-status="all">Бүгд</div>
+      <div class="filter-pill" data-status="open">Идэвхтэй</div>
+      <div class="filter-pill" data-status="done">Дууссан</div>
+      <div class="search"><input type="text" id="search" placeholder="🔍 Хайх..." /></div>
+    </div>
+
+    <div class="tasks" id="tasks">
+      <div class="table-head">
+        <div></div>
+        <div>Даалгавар</div>
+        <div>Хариуцагч</div>
+        <div>Эцсийн хугацаа</div>
+        <div>Зэрэглэл</div>
+        <div></div>
+      </div>
+      <div id="task-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- NEW TASK MODAL -->
+<div class="modal-bg" id="task-modal">
+  <div class="modal">
+    <h2 id="task-modal-title">Шинэ даалгавар</h2>
+    <label>Гарчиг *</label>
+    <input id="t-title" placeholder="Жишээ: Хурим - 2026/06/15 - тоног бэлдэх" />
+    <label>Тайлбар</label>
+    <textarea id="t-desc" placeholder="Дэлгэрэнгүй..."></textarea>
+    <label>Бүлэг *</label>
+    <select id="t-branch"></select>
+    <label>Төсөл</label>
+    <select id="t-project"></select>
+    <label>Хариуцагч</label>
+    <select id="t-assignee"></select>
+    <label>Эцсийн хугацаа</label>
+    <input type="date" id="t-due" />
+    <label>Зэрэглэл</label>
+    <select id="t-priority">
+      <option value="none">— Сонгох —</option>
+      <option value="low">Бага</option>
+      <option value="med">Дунд</option>
+      <option value="high">Өндөр</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn" id="t-cancel">Болих</button>
+      <button class="btn btn-primary" id="t-save">Хадгалах</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-bg" id="settings-modal">
+  <div class="modal">
+    <h2>Тохиргоо</h2>
+    <label>n8n Webhook URL (data sync)</label>
+    <input id="s-api" placeholder="https://your-n8n.example.com/webhook/checklist" />
+    <label>n8n Notification Webhook URL (мэдэгдэл)</label>
+    <input id="s-notify" placeholder="https://your-n8n.example.com/webhook/notify" />
+    <label>n8n Staff Webhook URL (Master Sheet sync)</label>
+    <input id="s-staff" placeholder="https://your-n8n.example.com/webhook/staff" />
+    <p style="font-size: 11px; color: var(--muted); margin-top: 10px;">
+      Хоосон үлдээвэл browser-ийн localStorage ашиглана (зөвхөн энэ компьютер дээр).
+    </p>
+    <div class="modal-actions">
+      <button class="btn" id="s-cancel">Болих</button>
+      <button class="btn btn-primary" id="s-save">Хадгалах</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW ORDER MODAL — 5-stage act (M Event-ийн гол урсгал) -->
+<div class="modal-bg" id="order-modal">
+  <div class="modal">
+    <h2>📋 Шинэ захиалга — 5 дамжлагат акт</h2>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 14px;line-height:1.5;">
+      Нэг товчоор парент + 5 sub-task (Захиалга → Засвар → Логистик → Цэвэрлэгээ → Нярав) автоматаар үүснэ.
+      Дамжлага бүр өмнөхөө дуустал идэвхгүй байна.
+    </p>
+    <label>Үйлчлүүлэгчийн нэр *</label>
+    <input id="o-customer" placeholder="Жишээ: Анхил Group · Хурим" />
+    <label>Арга хэмжээний өдөр *</label>
+    <input id="o-date" type="date" />
+    <label>Газар</label>
+    <input id="o-location" placeholder="Жишээ: Хан-Уул дүүрэг, Restaurant XYZ" />
+    <label>Тайлбар (тоног, хүний тоо г.м.)</label>
+    <textarea id="o-desc" placeholder="50 ширхэг сандал, 5 ширээ, LED дэлгэц..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" id="o-cancel">Болих</button>
+      <button class="btn btn-primary" id="o-save">5 дамжлагаар үүсгэх</button>
+    </div>
+  </div>
+</div>
+
+<div class="conn-status offline" id="conn">
+  <span class="dot"></span><span id="conn-text">Локал режим</span>
+</div>
+
+<script>
+/* -------------------- CONSTANTS -------------------- */
+// Branches — 3 work-groups + 1 cross-branch "production" type for Camp↔M Event events.
+// Store branch removed 2026-05-16: CEO no longer manages the store (Wise Brothers).
+const BRANCHES = [
+  { id: 'm-event',    name: 'M Event',         icon: '🎪' },
+  { id: 'camp',       name: 'NOMAAD Camp',     icon: '🏕️' },
+  { id: 'shared',     name: 'Нэгдсэн алба',    icon: '🏢' },
+  { id: 'production', name: 'Production event',icon: '🌟' },
+];
+
+// 14-staff roster as of 2026-05-16, синк хийгдсэн Master Sheet:
+// https://docs.google.com/spreadsheets/d/1so0IBwfok7_Tss3y25a-40qybGe9SGHimkuXrihuWvM/edit
+// Old IDs (001–006) kept for backward compat with existing tasks in localStorage.
+// `email` field used for login email lookup (legacy). PIN is the active auth.
+// `level` is hierarchical rank: 100=CEO, 80=executive, 60=manager/ахлах, 40=staff.
+// A user can only DELETE tasks created by someone at their level or below.
+//
+// Store branch + Wise Brothers staff removed: CEO no longer manages дэлгүүр.
+// Хасагдсан хүмүүс: S02 Тэмүүлэн, S04 Ганболд, M03 Шижирсаран, M09 Тананбат,
+//   C03 Бямбацэрэн, C04 Төгөлдөр, C05 Эрка, T01 Содхүү, T02 Тэлмэн.
+//
+// `let` (not const) — runtime sync replaces this array in-place from Master Sheet via n8n /staff endpoint.
+let TEAM = [
+  { id: 'CEO', name: 'Г.Мөнх-Учрал', role: 'CEO', level: 100, pin: '1234',
+    email: 'ceo@nomaadcamp.com',
+    aliases: ['gmunkhuchral@gmail.com'],
+    branches: ['m-event','camp','shared','production'] },
+
+  // Нэгдсэн алба (cross-cutting). PIN scheme: shared=10xx
+  { id: 'S01', name: 'Н.Анужин',       role: 'Кемп менежер',           level: 80, pin: '1001', email: 'akunaa.anujin@gmail.com',  branches: ['shared','camp'] },
+  { id: 'S03', name: 'О.Түвдэндаржаа', role: 'Туслах нягтлан',         level: 40, pin: '1003', email: 'tuvdendar@gmail.com',      branches: ['shared'] },
+
+  // M Event салбар. PIN scheme: m-event=20xx
+  { id: '001', name: 'И.Алтансүх',     role: 'ҮАХ захирал M EVENT',    level: 80, pin: '2001', email: 'coo@mevent.mn',            aliases: ['i.altansukh0820@gmail.com'], branches: ['m-event','production'] },
+  { id: 'M02', name: 'Г.Сайнжаргал',   role: 'Event Manager',          level: 60, pin: '2002', email: '',                         branches: ['m-event','production'] },
+  { id: '003', name: 'Д.Нинждолгор',   role: 'Нярав',                  level: 60, pin: '2004', email: '',                         branches: ['m-event'] },
+  { id: '004', name: 'Б.Пүрэвдавга',   role: 'Агуулах засварын ажилтан', level: 60, pin: '2005', email: '',                       branches: ['m-event','production'] },
+  { id: '005', name: 'Д.Баясгалан',    role: 'Агуулах-Логистик 1',     level: 40, pin: '2006', email: '',                         branches: ['m-event','production'] },
+  { id: 'M07', name: 'О.Эрдэнэхүү',    role: 'Агуулах-Логистик 2',     level: 40, pin: '2007', email: '',                         branches: ['m-event','production'] },
+  { id: '006', name: 'Хишигтогтох',    role: 'Цэврэлгээ',              level: 40, pin: '2008', email: '',                         branches: ['m-event'] },
+
+  // NOMAAD Camp. PIN scheme: camp=30xx
+  { id: 'C01', name: 'Б.Дэлгэрбат',    role: 'ҮАХ захирал NOMAAD',     level: 80, pin: '3001', email: 'delgerbat69@nomaadcamp.com', branches: ['camp','production'] },
+  { id: 'C02', name: 'Б.Батжаргал',    role: 'Кемпийн менежер',        level: 60, pin: '3002', email: '',                         branches: ['camp','production'] },
+  { id: 'C06', name: 'Цэлмэг',         role: 'Кемп туслах 1',          level: 40, pin: '3006', email: '',                         branches: ['camp'] },
+];
+
+// Google OAuth Client ID (project: chimun-tasks). Kept for legacy code paths;
+// PIN auth is the active login method. Safe to ignore.
+const GOOGLE_CLIENT_ID = '885227117000-jqlgvuvakf60ejrqajd4mg0euilh7n1q.apps.googleusercontent.com';
+
+// n8n webhook URL — hardcoded so staff never have to configure anything.
+// Change here + push when the backend moves. Settings panel still lets the user
+// override locally for testing.
+const DEFAULT_API_URL    = 'https://chimun.app.n8n.cloud/webhook/checklist';
+const DEFAULT_NOTIFY_URL = 'https://chimun.app.n8n.cloud/webhook/notify';
+// Staff roster sync — read-only GET endpoint that returns { team: [...] } from Master Sheet.
+// If reachable, replaces the hardcoded TEAM constant below at startup.
+const DEFAULT_STAFF_URL  = 'https://chimun.app.n8n.cloud/webhook/staff';
+
+// Default projects per branch. Saved to localStorage on first load; user can add more.
+const PROJECTS_BY_BRANCH = {
+  'm-event': [
+    { id: 'event',     name: 'Захиалга бэлдэх (5 дамжлага)' },
+    { id: 'inventory', name: 'Сар бүрийн тооллого' },
+    { id: 'cleaning',  name: 'Цэвэрлэгээ / чанарын шалгалт' },
+    { id: 'repair',    name: 'Засвар / тоноглол' },
+    { id: 'kpi',       name: 'KPI хяналт' },
+  ],
+  'camp': [
+    { id: 'pre-season', name: 'Сезоны өмнөх бэлтгэл' },
+    { id: 'event-prep', name: 'Арга хэмжээний бэлдэл' },
+    { id: 'camp-ops',   name: 'Кемпийн өдөр тутмын ажил' },
+    { id: 'kitchen',    name: 'Гал тогоо' },
+  ],
+  'shared': [
+    { id: 'admin',     name: 'Захиргааны ажил' },
+    { id: 'finance',   name: 'Санхүү / татвар' },
+    { id: 'marketing', name: 'Маркетинг / social' },
+    { id: 'hr',        name: 'Хүний нөөц / цалин' },
+  ],
+  'production': [
+    { id: 'camp-prep',   name: 'Camp талын бэлдэл' },
+    { id: 'mevent-prep', name: 'M Event талын бэлдэл' },
+    { id: 'event-day',   name: 'Арга хэмжээний өдөр' },
+    { id: 'post-event',  name: 'Дараах тайлан' },
+  ],
+};
+
+/* -------------------- 5-СТАДИЙН АКТ TEMPLATE --------------------
+   Camp ↔ M Event-ийн актын урсгал — Chimun_Camp_MEvent_Agreement_2026.
+   "Шинэ захиалга" товчоор 1 эх (parent) task + 5 sub-task үүснэ.
+   Дамжлага бүр `offset` өдрөөр event-ийн өдрөөс тооцон due огноотой болно.
+   `role_id`-аар TEAM-аас default хариуцагчийг сонгоно (CEO/менежер өөрчилж болно).
+*/
+const ACT_TEMPLATE = [
+  { stage: 1, title: 'Акт үүсгэх + захиалгын мэдээлэл',         role_id: 'M02', offset: -7, priority: 'high' },
+  { stage: 2, title: 'Тоног төхөөрөмж бэлдэх + тест',           role_id: '004', offset: -1, priority: 'high' },
+  { stage: 3, title: 'Газар дээр хүргэх + setup',               role_id: '005', offset:  0, priority: 'high' },
+  { stage: 4, title: 'Буцаалт + цэвэрлэгээ + чанарын шалгалт',  role_id: '006', offset:  1, priority: 'med'  },
+  { stage: 5, title: 'Бүртгэл хаах + санхүүгийн бүртгэл',       role_id: '003', offset:  2, priority: 'med'  },
+];
+
+/* -------------------- STATE -------------------- */
+const state = {
+  tasks: [],
+  projectsByBranch: {},  // { 'm-event': [...], 'camp': [...], ... }
+  branch: localStorage.getItem('branch') || 'm-event',
+  view: 'all',           // all | mine | overdue | today | done | project:<id>
+  statusFilter: 'all',   // all | open | done
+  search: '',
+  // Auth state — populated by Google Sign-In flow. `me` is set automatically.
+  user: null,            // { id, name, role, email, picture, branches }
+  me: null,              // user.id (used as task assignee key, kept for backward compat)
+  isCEO: false,          // whether this user has full access
+  config: {
+    // localStorage override > hardcoded default > empty
+    apiUrl:    localStorage.getItem('apiUrl')    || DEFAULT_API_URL    || '',
+    notifyUrl: localStorage.getItem('notifyUrl') || DEFAULT_NOTIFY_URL || '',
+    staffUrl:  localStorage.getItem('staffUrl')  || DEFAULT_STAFF_URL  || '',
+  },
+  editingId: null,
+};
+
+/* -------------------- STAFF SYNC --------------------
+   TEAM (above) is the hardcoded fallback. At startup we load fresher data from:
+     1) localStorage cache (sync, instant)
+     2) n8n /staff endpoint backed by Master Sheet (async, ~200ms)
+   Both update TEAM in-place via `TEAM.length=0; push(...)` so all existing
+   references (`memberName`, `fillAssigneeSelect`, etc.) keep working without
+   reassignment. */
+function loadTeamFromCache() {
+  try {
+    const cached = localStorage.getItem('teamCache');
+    if (!cached) return false;
+    const parsed = JSON.parse(cached);
+    if (!Array.isArray(parsed) || !parsed.length) return false;
+    TEAM.length = 0;
+    parsed.forEach(m => TEAM.push(m));
+    return true;
+  } catch(e) { return false; }
+}
+async function loadTeamFromAPI() {
+  const url = state.config.staffUrl;
+  if (!url) return false;
+  try {
+    const r = await fetch(url, { method: 'GET' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const fresh = Array.isArray(data?.team) ? data.team : null;
+    if (!fresh || !fresh.length) throw new Error('empty team response');
+    TEAM.length = 0;
+    fresh.forEach(m => TEAM.push(m));
+    localStorage.setItem('teamCache', JSON.stringify(fresh));
+    localStorage.setItem('teamCacheAt', String(Date.now()));
+    console.log(`Staff sync OK: ${fresh.length} members from Master Sheet`);
+    return true;
+  } catch(e) {
+    console.warn('Staff sync failed, using cached/hardcoded TEAM:', e);
+    return false;
+  }
+}
+function currentProjects() {
+  return state.projectsByBranch[state.branch] || [];
+}
+function currentBranchInfo() {
+  return BRANCHES.find(b => b.id === state.branch) || BRANCHES[0];
+}
+
+/* -------------------- STORAGE -------------------- */
+// Google Sheets returns string-typed columns as numbers when the value looks numeric
+// (e.g. assignee "001" → 1). Normalize so render code can rely on consistent types.
+function normalizeTask(t) {
+  if (!t || typeof t !== 'object') return t;
+  const stringFields = ['id','title','desc','branch','project','assignee','due','priority','status','kpi_code','createdBy','parent_id','kind'];
+  const out = { ...t };
+  for (const f of stringFields) {
+    if (out[f] != null) out[f] = String(out[f]);
+  }
+  // Pad assignee back to 3 digits if it looks like a stripped numeric ID ("1" → "001")
+  if (/^\d{1,2}$/.test(out.assignee)) out.assignee = out.assignee.padStart(3, '0');
+  if (/^\d{1,2}$/.test(out.createdBy)) out.createdBy = out.createdBy.padStart(3, '0');
+  // `stage` is numeric (1-5). Google Sheets may return it as string.
+  if (out.stage != null && out.stage !== '') out.stage = Number(out.stage) || null;
+  return out;
+}
+
+async function loadData() {
+  // Always seed the per-branch projects map first so the sidebar has something
+  // to render even if n8n returns only tasks.
+  if (!Object.keys(state.projectsByBranch).length) {
+    Object.keys(PROJECTS_BY_BRANCH).forEach(b => {
+      state.projectsByBranch[b] = [...PROJECTS_BY_BRANCH[b]];
+    });
+  }
+  if (state.config.apiUrl) {
+    try {
+      const r = await fetch(state.config.apiUrl + '?action=list');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      const raw = Array.isArray(data) ? data : (data.tasks || []);
+      state.tasks = raw.map(normalizeTask);
+      if (data.projectsByBranch) state.projectsByBranch = data.projectsByBranch;
+      setConn('online', 'n8n холбогдсон');
+      saveLocal();   // cache
+      return;
+    } catch (e) {
+      console.warn('API load failed, falling back to local:', e);
+      setConn('offline', 'Локал режим (n8n холбогдсонгүй)');
+    }
+  }
+  loadLocal();
+}
+function loadLocal() {
+  // Tasks
+  try {
+    const raw = localStorage.getItem('tasks');
+    state.tasks = raw ? JSON.parse(raw) : seedTasks();
+  } catch(e) { state.tasks = seedTasks(); }
+  // Projects per branch — initialize from defaults, override with anything saved
+  state.projectsByBranch = {};
+  Object.keys(PROJECTS_BY_BRANCH).forEach(b => {
+    state.projectsByBranch[b] = [...PROJECTS_BY_BRANCH[b]];
+  });
+  try {
+    const pRaw = localStorage.getItem('projectsByBranch');
+    if (pRaw) {
+      const saved = JSON.parse(pRaw);
+      Object.keys(saved).forEach(b => { state.projectsByBranch[b] = saved[b]; });
+    }
+  } catch(e) { /* keep defaults */ }
+  setConn('offline', 'Локал режим');
+}
+function saveLocal() {
+  localStorage.setItem('tasks', JSON.stringify(state.tasks));
+  localStorage.setItem('projectsByBranch', JSON.stringify(state.projectsByBranch));
+  localStorage.setItem('branch', state.branch);
+}
+async function saveTask(task, deleted=false) {
+  saveLocal();
+  if (state.config.apiUrl) {
+    try {
+      await fetch(state.config.apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: deleted ? 'delete' : 'upsert', task })
+      });
+      setConn('online', 'n8n холбогдсон');
+    } catch(e) {
+      console.warn('Sync failed:', e);
+      setConn('offline', 'Sync хийгдсэнгүй');
+    }
+  }
+}
+async function notify(event, task) {
+  if (!state.config.notifyUrl) return;
+  try {
+    await fetch(state.config.notifyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, task, by: state.me })
+    });
+  } catch(e) { console.warn('notify failed', e); }
+}
+function seedTasks() {
+  const today = new Date();
+  const d = (n)=> { const x = new Date(today); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+  return [
+    // M Event seeds
+    { id: uid(),    title: 'Долоо хоногийн агуулахын тооллого',                 branch: 'm-event', project: 'inventory', assignee: '003', due: d(2),  priority: 'high', status: 'open', createdBy: 'CEO', desc: '', created: Date.now() },
+    { id: 'demo2',  title: 'Шинэ хүргэлтийн машин шалгах',                      branch: 'm-event', project: 'repair',    assignee: '004', due: d(0),  priority: 'med',  status: 'open', createdBy: 'CEO', desc: '', created: Date.now() },
+    { id: 'demo3',  title: 'Хурим — 2026/05/12 — тоног бэлдэх',                 branch: 'm-event', project: 'event',     assignee: '005', due: d(-1), priority: 'high', status: 'open', createdBy: 'CEO', desc: '50 ширхэг сандал, 5 ширээ', created: Date.now() },
+    { id: 'demo4',  title: 'M Event сарын KPI тайлан гаргах',                   branch: 'm-event', project: 'kpi',       assignee: '001', due: d(7),  priority: 'med',  status: 'open', createdBy: 'CEO', desc: '', created: Date.now() },
+    { id: 'demo5',  title: 'Буцаж ирсэн ширээний бүтээлгийн цэвэрлэгээ',        branch: 'm-event', project: 'cleaning',  assignee: '006', due: d(1),  priority: 'low',  status: 'done', createdBy: 'CEO', desc: '', created: Date.now() },
+    // Camp seeds — Сезон 5/20 нээлтийн ӨМНӨХ 4 хоногийн бэлдэл
+    { id: 'demo-pre1', title: 'Тогооч/зөөгч/үйлчлэгч зар тарьх (FB groups + 1212.mn)', branch: 'camp', project: 'pre-season', assignee: 'S01', due: d(0), priority: 'high', status: 'open', createdBy: 'CEO', desc: 'Олголтын Sheet-аас өнөөдөр 10 орон тоо зарлагдсан байх ёстой. FB кэмпүүдийн group, 1212.mn, Joboo.mn-д тавих.', created: Date.now() },
+    { id: 'demo-pre2', title: 'Ярилцлага хийх 5/17-18 (хүнсний орон тоо тус бүр)',    branch: 'camp', project: 'pre-season', assignee: 'S01', due: d(1), priority: 'high', status: 'open', createdBy: 'CEO', desc: 'Ахлах тогооч 1, туслах тогооч 1, бэлтгэгч 1, зөөгч 3 — нийт 6 хүнтэй гэрээ бэлдэх', created: Date.now() },
+    { id: 'demo-pre3', title: 'Гэрээ + НДШ бүртгэл бэлдэх (M.event загвар)',          branch: 'camp', project: 'pre-season', assignee: 'S03', due: d(2), priority: 'high', status: 'open', createdBy: 'CEO', desc: 'Улирлын 4 сарын гэрээ — Анужины хувилбараар Үндсэн цалин + улирлын бонус', created: Date.now() },
+    { id: 'demo-pre4', title: 'Кемпийн дэд бүтцийн шалгалт (гэр, гал тогоо, бариа)',  branch: 'camp', project: 'pre-season', assignee: 'C02', due: d(3), priority: 'high', status: 'open', createdBy: 'CEO', desc: 'Гэр 8 ширхэг, ор/матрас, гал тогооны багаж, гэрэлтүүлэг, ариун цэврийн өрөө — бүгд бэлэн эсэхийг шалга', created: Date.now() },
+    { id: 'demo-pre5', title: 'Тогооны хүнсний эхний захиалга (5/20-25)',             branch: 'camp', project: 'kitchen',    assignee: 'C05_TBD', due: d(3), priority: 'med', status: 'open', createdBy: 'CEO', desc: 'Шинэ ахлах тогоочтой хамт жагсаалт хийж захиална. C05_TBD = шинэ ахлах тогоочийн ID орлон гарах.', created: Date.now() },
+    { id: 'demo-pre6', title: 'Сезоны нээлтийн өдрийн plan (5/20 бүх багц бэлэн)',    branch: 'camp', project: 'pre-season', assignee: 'C01', due: d(4), priority: 'high', status: 'open', createdBy: 'CEO', desc: 'Энэ нь нэгтгэх checkpoint — бүх sub-task дуусгасан байна', created: Date.now() },
+    // Shared seeds
+    { id: 'demo9',  title: 'Цалингийн хуваарилалт сар бүр 5-нд',                branch: 'shared',  project: 'finance',   assignee: 'S01', due: d(3),  priority: 'high', status: 'open', createdBy: 'CEO', desc: '', created: Date.now() },
+    { id: 'demo10', title: 'Social media контент 5/12-15-ны хуваарь',           branch: 'shared',  project: 'marketing', assignee: 'S03', due: d(2),  priority: 'med',  status: 'open', createdBy: 'CEO', desc: '', created: Date.now() },
+    // Production event seed (cross-branch)
+    { id: 'demo11', title: 'Production: Оюу Толгой 2026/06/15 — гэрээ батлах', branch: 'production', project: 'event-day', assignee: 'C01', due: d(40), priority: 'high', status: 'open', createdBy: 'CEO', desc: '280K багц · LED дэлгэц · Moonbeam Lounge · 200 хүн', created: Date.now() },
+  ].map(t => ({ ...t, id: t.id || uid() }));
+}
+function uid() { return 't_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+// Add `days` (can be negative) to a YYYY-MM-DD string. Returns YYYY-MM-DD.
+function addDays(yyyymmdd, days) {
+  if (!yyyymmdd) return '';
+  const d = new Date(yyyymmdd + 'T00:00:00');
+  if (isNaN(d)) return '';
+  d.setDate(d.getDate() + Number(days || 0));
+  return d.toISOString().slice(0,10);
+}
+
+/* Create a 5-stage act for an M Event order. Returns the parent task.
+   Side-effect: pushes parent + 5 sub-tasks into state.tasks, persists via saveTask. */
+async function createOrderAct({ customer, eventDate, location, desc }) {
+  const branch = 'm-event';
+  const parentId = uid();
+  const owner = state.me || 'CEO';
+  const parent = {
+    id: parentId,
+    title: `📋 ${customer || 'Захиалга'} — ${eventDate || 'огноогүй'}`,
+    desc: (location ? `📍 ${location}\n` : '') + (desc || ''),
+    branch,
+    project: 'event',
+    assignee: owner,           // парент даалгаврыг үүсгэгч хариуцна
+    due: eventDate || '',
+    priority: 'high',
+    status: 'open',
+    kind: 'act_parent',
+    createdBy: owner,
+    created: Date.now(),
+  };
+  state.tasks.unshift(parent);
+  await saveTask(parent);
+  // Sub-tasks (5 stages)
+  for (const tpl of ACT_TEMPLATE) {
+    const sub = {
+      id: uid(),
+      title: `Дамжлага ${tpl.stage}: ${tpl.title}`,
+      desc: '',
+      branch,
+      project: 'event',
+      assignee: tpl.role_id,
+      due: addDays(eventDate, tpl.offset),
+      priority: tpl.priority,
+      status: 'open',
+      kind: 'act_stage',
+      stage: tpl.stage,
+      parent_id: parentId,
+      createdBy: owner,
+      created: Date.now() + tpl.stage,  // keep stable order
+    };
+    state.tasks.push(sub);
+    await saveTask(sub);
+  }
+  notify('act.created', parent);
+  return parent;
+}
+
+// Given a sub-task, find the previous stage in the same parent.
+// Returns null if t is not a sub-task or stage <= 1.
+function prevStageOf(t) {
+  if (!t || t.kind !== 'act_stage' || !t.parent_id || !t.stage || Number(t.stage) <= 1) return null;
+  const target = Number(t.stage) - 1;
+  return state.tasks.find(x => x.parent_id === t.parent_id && Number(x.stage) === target) || null;
+}
+
+// Check if a sub-task can be completed (i.e. its previous stage is done).
+function canCompleteSubtask(t) {
+  const prev = prevStageOf(t);
+  if (prev && prev.status !== 'done') return { ok: false, prev };
+  return { ok: true };
+}
+
+// Aggregate progress for an act_parent — returns { done, total } across its sub-tasks.
+function actProgress(parentId) {
+  const subs = state.tasks.filter(t => t.parent_id === parentId);
+  return { done: subs.filter(s => s.status === 'done').length, total: subs.length };
+}
+
+/* -------------------- HELPERS -------------------- */
+function memberName(id) { const m = TEAM.find(x=>x.id===id); return m? m.name : id; }
+function memberInitials(id) { const m = TEAM.find(x=>x.id===id); if(!m) return '?'; return m.name.replace(/\./g,'').slice(0,2); }
+function projectName(id) {
+  // Look up across all branches so cross-branch tasks still show project name correctly.
+  for (const branch of Object.keys(state.projectsByBranch)) {
+    const p = state.projectsByBranch[branch].find(x => x.id === id);
+    if (p) return p.name;
+  }
+  return '—';
+}
+function dueClass(due, status) {
+  if (status === 'done' || !due) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(due); d.setHours(0,0,0,0);
+  const diff = (d - today) / 86400000;
+  if (diff < 0) return 'overdue';
+  if (diff <= 1) return 'soon';
+  return '';
+}
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dd = new Date(d); dd.setHours(0,0,0,0);
+  const diff = (dd - today) / 86400000;
+  if (diff === 0) return 'Өнөөдөр';
+  if (diff === 1) return 'Маргааш';
+  if (diff === -1) return 'Өчигдөр';
+  return d.toLocaleDateString('mn-MN', { month: 'short', day: 'numeric' });
+}
+function setConn(cls, text) {
+  const el = document.getElementById('conn');
+  el.className = 'conn-status ' + cls;
+  document.getElementById('conn-text').textContent = text;
+}
+
+/* -------------------- FILTERING -------------------- */
+function taskBranch(t) {
+  // Tasks from before the multi-branch upgrade have no branch field. Treat them
+  // as M Event so existing data stays visible.
+  return t.branch || 'm-event';
+}
+function filteredTasks() {
+  let list = [...state.tasks];
+  // ACCESS CONTROL — non-CEO users see ONLY tasks assigned to themselves,
+  // PLUS the parent of any 5-stage act they're a sub-task on (so they see
+  // the order context — customer name, event date — not just their stage).
+  if (!state.isCEO && state.me) {
+    const allowed = new Set();
+    state.tasks.forEach(t => { if (t.assignee === state.me) allowed.add(t.id); });
+    // Include parent of any allowed sub-task
+    state.tasks.forEach(t => {
+      if (t.parent_id && allowed.has(t.id)) allowed.add(t.parent_id);
+    });
+    list = list.filter(t => allowed.has(t.id));
+  }
+  // BRANCH filter — apply after access control. Production events appear in M Event + Camp views too.
+  list = list.filter(t => {
+    const tb = taskBranch(t);
+    if (tb === state.branch) return true;
+    if (tb === 'production' && (state.branch === 'm-event' || state.branch === 'camp')) return true;
+    return false;
+  });
+  // view
+  const today = new Date().toISOString().slice(0,10);
+  if (state.view === 'mine') list = list.filter(t => t.assignee === state.me);
+  else if (state.view === 'overdue') list = list.filter(t => t.status === 'open' && t.due && t.due < today);
+  else if (state.view === 'today') list = list.filter(t => t.due === today);
+  else if (state.view === 'done') list = list.filter(t => t.status === 'done');
+  else if (state.view.startsWith('project:')) {
+    const pid = state.view.split(':')[1];
+    list = list.filter(t => t.project === pid);
+  }
+  // status filter
+  if (state.statusFilter === 'open') list = list.filter(t => t.status !== 'done');
+  else if (state.statusFilter === 'done') list = list.filter(t => t.status === 'done');
+  // search
+  if (state.search) {
+    const q = state.search.toLowerCase();
+    list = list.filter(t => (t.title||'').toLowerCase().includes(q) || (t.desc||'').toLowerCase().includes(q));
+  }
+  // sort: open first, then by due asc, then created desc
+  list.sort((a,b) => {
+    if ((a.status==='done') !== (b.status==='done')) return a.status==='done' ? 1 : -1;
+    const ad = a.due || '9999-12-31', bd = b.due || '9999-12-31';
+    if (ad !== bd) return ad < bd ? -1 : 1;
+    return (b.created||0) - (a.created||0);
+  });
+  // REGROUP — keep 5-stage act sub-tasks right under their parent.
+  // Sub-tasks within a parent are ordered by stage 1→5 regardless of due date.
+  const placed = new Set();
+  const subsByParent = {};
+  list.forEach(t => {
+    if (t.parent_id) (subsByParent[t.parent_id] = subsByParent[t.parent_id] || []).push(t);
+  });
+  Object.values(subsByParent).forEach(arr =>
+    arr.sort((a,b) => (Number(a.stage)||0) - (Number(b.stage)||0))
+  );
+  const grouped = [];
+  list.forEach(t => {
+    if (placed.has(t.id)) return;
+    if (t.kind === 'act_parent') {
+      grouped.push(t); placed.add(t.id);
+      (subsByParent[t.id] || []).forEach(s => {
+        if (!placed.has(s.id)) { grouped.push(s); placed.add(s.id); }
+      });
+    }
+  });
+  // Remaining tasks (non-act, or orphaned sub-tasks whose parent was filtered out)
+  list.forEach(t => { if (!placed.has(t.id)) grouped.push(t); });
+  return grouped;
+}
+// "Mine" count across all branches (so the user sees their workload no matter which branch is selected)
+function tasksAssignedToMe() {
+  return state.tasks.filter(t => t.assignee === state.me && t.status !== 'done');
+}
+
+/* -------------------- RENDER -------------------- */
+function render() {
+  renderSidebar();
+  renderTitle();
+  renderTaskList();
+  renderCounts();
+}
+function renderSidebar() {
+  // active nav
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.view === state.view);
+  });
+  // brand reflects current branch so the user always knows which space they're in
+  const info = currentBranchInfo();
+  const brandEl = document.getElementById('brand-text');
+  if (brandEl) brandEl.textContent = info.icon + ' ' + info.name;
+  // branch dropdown reflects state.branch
+  const sel = document.getElementById('branch-select');
+  if (sel && sel.value !== state.branch) sel.value = state.branch;
+  // projects (only for current branch)
+  const list = document.getElementById('project-list');
+  list.innerHTML = '';
+  currentProjects().forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'project-item' + (state.view === 'project:'+p.id ? ' active':'');
+    const cnt = state.tasks.filter(t =>
+      t.project === p.id && taskBranch(t) === state.branch && t.status !== 'done'
+    ).length;
+    div.innerHTML = `<span>${escapeHtml(p.name)}</span><span class="count-badge">${cnt}</span>`;
+    div.onclick = () => { state.view = 'project:'+p.id; render(); };
+    list.appendChild(div);
+  });
+}
+function renderTitle() {
+  const titles = {
+    all: ['Бүгд','Бүх checklist'],
+    mine: ['Миний даалгаврууд', memberName(state.me)],
+    overdue: ['Хоцорсон','Эцсийн хугацаа өнгөрсөн'],
+    today: ['Өнөөдөр','Өнөөдөр дуусах ёстой'],
+    done: ['Дууссан','Биелсэн даалгаврууд'],
+  };
+  let t = titles[state.view];
+  if (!t && state.view.startsWith('project:')) {
+    const pid = state.view.split(':')[1];
+    t = [projectName(pid), 'Төсөл'];
+  }
+  document.getElementById('view-title').textContent = (t||['Бүгд'])[0];
+  document.getElementById('view-sub').textContent = (t||['','Бүх'])[1] || '';
+}
+function renderTaskList() {
+  const wrap = document.getElementById('task-list');
+  const tasks = filteredTasks();
+  wrap.innerHTML = '';
+  if (!tasks.length) {
+    wrap.innerHTML = '<div class="empty"><div class="icon">📋</div>Энд даалгавар алга. + Шинэ даалгавар дарж нэмнэ үү.</div>';
+    return;
+  }
+  tasks.forEach(t => wrap.appendChild(renderRow(t)));
+}
+function renderRow(t) {
+  const row = document.createElement('div');
+  const isParent = t.kind === 'act_parent';
+  const isSub = t.kind === 'act_stage' || !!t.parent_id;
+  const lockCheck = isSub ? canCompleteSubtask(t) : { ok: true };
+  let cls = 'task-row';
+  if (t.status === 'done') cls += ' completed';
+  if (isParent) cls += ' act-parent';
+  if (isSub) cls += ' subtask';
+  if (!lockCheck.ok && t.status !== 'done') cls += ' locked-stage';
+  row.className = cls;
+  const dc = dueClass(t.due, t.status);
+
+  // Title: prepend stage badge for sub-tasks, append progress for parents
+  let titleHtml = '';
+  if (isSub && t.stage) {
+    titleHtml = `<span class="stage-badge">D${t.stage}</span>${escapeHtml(t.title.replace(/^Дамжлага \d+:\s*/, ''))}`;
+  } else {
+    titleHtml = escapeHtml(t.title);
+  }
+  let extraHtml = '';
+  if (isParent) {
+    const p = actProgress(t.id);
+    if (p.total) extraHtml = `<span class="act-progress">${p.done}/${p.total} дуусгасан</span>`;
+  }
+  if (isSub && !lockCheck.ok && t.status !== 'done') {
+    const prevName = lockCheck.prev ? `D${lockCheck.prev.stage}` : 'өмнөх';
+    extraHtml += `<span class="stage-locked-hint">🔒 ${prevName} дуусгахыг хүлээж байна</span>`;
+  }
+
+  row.innerHTML = `
+    <div>
+      <div class="checkbox ${t.status==='done'?'checked':''}" data-act="toggle"></div>
+    </div>
+    <div class="task-title-wrap">
+      <div class="task-title" data-act="edit-title" contenteditable="false">${titleHtml}${extraHtml}</div>
+      <div class="task-meta">${escapeHtml(projectName(t.project))} ${t.desc ? '· '+escapeHtml(t.desc.slice(0,80)) : ''}</div>
+    </div>
+    <div class="col-assignee">
+      <span class="assignee-chip" data-act="open">
+        <span class="avatar">${escapeHtml(memberInitials(t.assignee))}</span>
+        ${escapeHtml(memberName(t.assignee))}
+      </span>
+    </div>
+    <div class="col-due">
+      <span class="due ${dc}" data-act="open">${fmtDate(t.due) || '— Тогтоох'}</span>
+    </div>
+    <div class="col-priority">
+      <span class="priority ${t.priority||'none'}" data-act="open">
+        ${({high:'Өндөр',med:'Дунд',low:'Бага',none:'—'})[t.priority||'none']}
+      </span>
+    </div>
+    <div>
+      ${(() => {
+        const can = canDeleteTask(t);
+        if (can.ok) return '<button class="delete-btn" title="Устгах" data-act="delete">×</button>';
+        const who = can.creator ? can.creator.name : 'дээд тушаалтан';
+        return `<button class="delete-btn locked" title="${escapeHtml(who)} үүсгэсэн — устгах эрхгүй" data-act="locked">🔒</button>`;
+      })()}
+    </div>
+  `;
+  row.addEventListener('click', (e) => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'toggle') toggleTask(t.id);
+    else if (act === 'delete') deleteTask(t.id);
+    else if (act === 'locked') {
+      const can = canDeleteTask(t);
+      const who = can.creator ? `${can.creator.name} (${can.creator.role})` : 'дээд албан тушаалтан';
+      alert(`${who} үүсгэсэн даалгавар. Устгах эрх танд алга.\nБиелүүлсэн бол ✓ тэмдэглээрэй.`);
+    }
+    else if (act === 'edit-title') {
+      const el = e.target;
+      el.contentEditable = 'true'; el.focus();
+      const range = document.createRange(); range.selectNodeContents(el);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    }
+    else if (act === 'open') openTaskModal(t.id);
+  });
+  // save title on blur
+  row.querySelector('.task-title').addEventListener('blur', (e) => {
+    const newTitle = e.target.textContent.trim();
+    e.target.contentEditable = 'false';
+    if (newTitle && newTitle !== t.title) {
+      t.title = newTitle;
+      saveTask(t);
+      render();
+    }
+  });
+  row.querySelector('.task-title').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+  });
+  return row;
+}
+function renderCounts() {
+  const today = new Date().toISOString().slice(0,10);
+  // Apply access control to base task list — non-CEO sees only own tasks
+  const accessible = state.isCEO
+    ? state.tasks
+    : state.tasks.filter(t => t.assignee === state.me);
+  // Counts respect the current branch (production tasks count toward m-event AND camp views).
+  const inBranch = (t) => {
+    const tb = taskBranch(t);
+    if (tb === state.branch) return true;
+    if (tb === 'production' && (state.branch === 'm-event' || state.branch === 'camp')) return true;
+    return false;
+  };
+  const branchTasks = accessible.filter(inBranch);
+  document.getElementById('cnt-all').textContent     = branchTasks.filter(t => t.status !== 'done').length;
+  document.getElementById('cnt-mine').textContent    = accessible.filter(t => t.assignee === state.me && t.status !== 'done').length;
+  document.getElementById('cnt-overdue').textContent = branchTasks.filter(t => t.status !== 'done' && t.due && t.due < today).length;
+  document.getElementById('cnt-today').textContent   = branchTasks.filter(t => t.due === today).length;
+  document.getElementById('cnt-done').textContent    = branchTasks.filter(t => t.status === 'done').length;
+}
+function escapeHtml(s) {
+  // Defensive: Google Sheets sometimes returns numbers/booleans where we expected strings
+  // (e.g. assignee "001" → 1). Coerce to string before replacing.
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* -------------------- ACTIONS -------------------- */
+function toggleTask(id) {
+  const t = state.tasks.find(x=>x.id===id); if (!t) return;
+  // Going from open → done: enforce 5-stage dependency for act sub-tasks
+  if (t.status !== 'done') {
+    const block = canCompleteSubtask(t);
+    if (!block.ok) {
+      const prev = block.prev;
+      alert(`Энэ дамжлагыг дуусгахын өмнө "${prev.title}" дуусгасан байх ёстой.\n\nХариуцагч: ${memberName(prev.assignee)}`);
+      return;
+    }
+  } else {
+    // Going from done → open: warn if a later stage is already done (would create inconsistency)
+    if (t.kind === 'act_stage' && t.parent_id) {
+      const next = state.tasks.find(x => x.parent_id === t.parent_id && Number(x.stage) === Number(t.stage) + 1 && x.status === 'done');
+      if (next && !confirm(`Дараагийн дамжлага "${next.title}" аль хэдийн дуусчихсан байна. Энэ дамжлагыг буцаах уу?`)) return;
+    }
+  }
+  t.status = t.status === 'done' ? 'open' : 'done';
+  saveTask(t);
+  notify(t.status === 'done' ? 'task.completed' : 'task.reopened', t);
+  // If this was the last sub-task and all are done, also auto-complete the parent
+  if (t.status === 'done' && t.parent_id) {
+    const parent = state.tasks.find(x => x.id === t.parent_id);
+    if (parent && parent.status !== 'done') {
+      const p = actProgress(parent.id);
+      if (p.total > 0 && p.done === p.total) {
+        parent.status = 'done';
+        saveTask(parent);
+        notify('act.completed', parent);
+      }
+    }
+  }
+  render();
+}
+function canDeleteTask(t) {
+  // CEO can always delete. Others can only delete tasks created by someone at
+  // their rank or below. Tasks with no `createdBy` are treated as CEO-created
+  // (most cautious — only CEO can clean them up).
+  if (state.isCEO) return { ok: true };
+  const creator = TEAM.find(m => m.id === t.createdBy);
+  const creatorLevel = creator ? (creator.level || 0) : 100;
+  const myLevel = state.myLevel || 0;
+  if (creatorLevel > myLevel) {
+    return { ok: false, creator };
+  }
+  return { ok: true };
+}
+function deleteTask(id) {
+  const t = state.tasks.find(x=>x.id===id);
+  if (!t) return;
+  // Hierarchical access control — block delete of higher-rank tasks
+  const check = canDeleteTask(t);
+  if (!check.ok) {
+    const who = check.creator ? `${check.creator.name} (${check.creator.role})` : 'дээд албан тушаалтан';
+    alert(`Энэ даалгаврыг ${who} үүсгэсэн тул устгах эрх танд алга. Биелүүлсэн бол ✓ тэмдэглээрэй, эсвэл удирдагчдаа ярь.`);
+    return;
+  }
+  // Special confirm + cascade for 5-stage act parents
+  if (t.kind === 'act_parent') {
+    const subs = state.tasks.filter(x => x.parent_id === t.id);
+    if (!confirm(`"${t.title}" + ${subs.length} sub-task бүгдийг хамт устгах уу?`)) return;
+    const idsToRemove = new Set([t.id, ...subs.map(s => s.id)]);
+    state.tasks = state.tasks.filter(x => !idsToRemove.has(x.id));
+    saveTask(t, true);
+    subs.forEach(s => saveTask(s, true));
+    render();
+    return;
+  }
+  if (!confirm('Энэ даалгаврыг устгах уу?')) return;
+  state.tasks = state.tasks.filter(x=>x.id!==id);
+  saveTask(t, true);
+  render();
+}
+function openTaskModal(id) {
+  const t = id ? state.tasks.find(x=>x.id===id) : null;
+  state.editingId = id || null;
+  document.getElementById('task-modal-title').textContent = t ? 'Даалгавар засах' : 'Шинэ даалгавар';
+  document.getElementById('t-title').value = t?.title || '';
+  document.getElementById('t-desc').value = t?.desc || '';
+  // Branch — when editing keep its branch; for new tasks default to currently-viewed branch.
+  // The branch select drives which projects + assignees are shown.
+  const taskBranchVal = t ? taskBranch(t) : state.branch;
+  fillBranchSelectInModal('t-branch', taskBranchVal);
+  fillProjectSelect('t-project', t?.project, taskBranchVal);
+  fillAssigneeSelect('t-assignee', t?.assignee || state.me, taskBranchVal);
+  document.getElementById('t-due').value = t?.due || '';
+  document.getElementById('t-priority').value = t?.priority || 'none';
+  // When the user changes branch inside the modal, refresh projects + assignees.
+  document.getElementById('t-branch').onchange = (e) => {
+    fillProjectSelect('t-project', null, e.target.value);
+    fillAssigneeSelect('t-assignee', state.me, e.target.value);
+  };
+  document.getElementById('task-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('t-title').focus(), 50);
+}
+function closeTaskModal() {
+  document.getElementById('task-modal').classList.remove('open');
+  state.editingId = null;
+}
+function saveTaskFromModal() {
+  const title = document.getElementById('t-title').value.trim();
+  if (!title) { alert('Гарчиг шаардлагатай'); return; }
+  const data = {
+    title,
+    desc: document.getElementById('t-desc').value.trim(),
+    branch: document.getElementById('t-branch').value || state.branch,
+    project: document.getElementById('t-project').value,
+    assignee: document.getElementById('t-assignee').value,
+    due: document.getElementById('t-due').value || '',
+    priority: document.getElementById('t-priority').value,
+  };
+  let t;
+  if (state.editingId) {
+    t = state.tasks.find(x=>x.id===state.editingId);
+    Object.assign(t, data);
+    saveTask(t);
+    notify('task.updated', t);
+  } else {
+    t = { id: uid(), status: 'open', created: Date.now(), createdBy: state.me, ...data };
+    state.tasks.unshift(t);
+    saveTask(t);
+    notify('task.created', t);
+  }
+  closeTaskModal();
+  render();
+}
+function addProject() {
+  const name = prompt('Шинэ төслийн нэр (' + currentBranchInfo().name + ' дотор үүснэ):');
+  if (!name) return;
+  const id = 'p_' + Date.now().toString(36);
+  if (!state.projectsByBranch[state.branch]) state.projectsByBranch[state.branch] = [];
+  state.projectsByBranch[state.branch].push({ id, name });
+  saveLocal();
+  state.view = 'project:' + id;
+  render();
+}
+
+/* -------------------- INIT -------------------- */
+function fillSelect(id, items, value, placeholder) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  if (placeholder) {
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = placeholder;
+    el.appendChild(o);
+  }
+  items.forEach(it => {
+    const o = document.createElement('option');
+    o.value = it.value; o.textContent = it.label;
+    if (it.value === value) o.selected = true;
+    el.appendChild(o);
+  });
+}
+function fillProjectSelect(id, value, branchOverride) {
+  const branch = branchOverride || state.branch;
+  const projects = state.projectsByBranch[branch] || [];
+  fillSelect(id, projects.map(p => ({ value: p.id, label: p.name })), value);
+}
+function fillAssigneeSelect(id, value, branchOverride) {
+  const branch = branchOverride || state.branch;
+  // Show only people whose `branches` array includes the selected branch
+  const members = TEAM.filter(m => !m.branches || m.branches.includes(branch));
+  fillSelect(id, members.map(m => ({ value: m.id, label: m.name + ' (' + m.role + ')' })), value);
+}
+function fillBranchSelectInModal(id, value) {
+  fillSelect(id, BRANCHES.map(b => ({ value: b.id, label: b.icon + ' ' + b.name })), value);
+}
+
+function initEvents() {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.onclick = () => { state.view = el.dataset.view; render(); };
+  });
+  document.querySelectorAll('.filter-pill').forEach(el => {
+    el.onclick = () => {
+      document.querySelectorAll('.filter-pill').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      state.statusFilter = el.dataset.status;
+      render();
+    };
+  });
+  document.getElementById('add-project').onclick = addProject;
+  document.getElementById('new-task-btn').onclick = () => openTaskModal();
+  document.getElementById('t-cancel').onclick = closeTaskModal;
+  document.getElementById('t-save').onclick = saveTaskFromModal;
+
+  // NEW ORDER (5-stage act) — visible only in M Event branch
+  const orderBtn = document.getElementById('new-order-btn');
+  function syncOrderBtnVisibility() {
+    orderBtn.style.display = (state.branch === 'm-event') ? '' : 'none';
+  }
+  syncOrderBtnVisibility();
+  orderBtn.onclick = () => {
+    document.getElementById('o-customer').value = '';
+    document.getElementById('o-date').value = '';
+    document.getElementById('o-location').value = '';
+    document.getElementById('o-desc').value = '';
+    document.getElementById('order-modal').classList.add('open');
+    setTimeout(() => document.getElementById('o-customer').focus(), 50);
+  };
+  document.getElementById('o-cancel').onclick = () => document.getElementById('order-modal').classList.remove('open');
+  document.getElementById('o-save').onclick = async () => {
+    const customer = document.getElementById('o-customer').value.trim();
+    const eventDate = document.getElementById('o-date').value;
+    const location = document.getElementById('o-location').value.trim();
+    const desc = document.getElementById('o-desc').value.trim();
+    if (!customer) { alert('Үйлчлүүлэгчийн нэр шаардлагатай'); return; }
+    if (!eventDate) { alert('Арга хэмжээний өдөр шаардлагатай'); return; }
+    document.getElementById('o-save').disabled = true;
+    try {
+      await createOrderAct({ customer, eventDate, location, desc });
+      document.getElementById('order-modal').classList.remove('open');
+      state.view = 'all';
+      render();
+    } finally {
+      document.getElementById('o-save').disabled = false;
+    }
+  };
+  document.getElementById('search').oninput = (e) => { state.search = e.target.value; render(); };
+
+  // settings
+  document.getElementById('settings-btn').onclick = () => {
+    document.getElementById('s-api').value = state.config.apiUrl;
+    document.getElementById('s-notify').value = state.config.notifyUrl;
+    document.getElementById('s-staff').value = state.config.staffUrl;
+    document.getElementById('settings-modal').classList.add('open');
+  };
+  document.getElementById('s-cancel').onclick = () => document.getElementById('settings-modal').classList.remove('open');
+  document.getElementById('s-save').onclick = () => {
+    state.config.apiUrl = document.getElementById('s-api').value.trim();
+    state.config.notifyUrl = document.getElementById('s-notify').value.trim();
+    state.config.staffUrl = document.getElementById('s-staff').value.trim();
+    localStorage.setItem('apiUrl', state.config.apiUrl);
+    localStorage.setItem('notifyUrl', state.config.notifyUrl);
+    localStorage.setItem('staffUrl', state.config.staffUrl);
+    document.getElementById('settings-modal').classList.remove('open');
+    loadTeamFromAPI().then(() => loadData().then(render));
+  };
+
+  // BRANCH selector — CEO sees all 5 branches; staff see only their assigned branches
+  const userBranchIds = state.user?.branches || ['m-event'];
+  const visibleBranches = state.isCEO ? BRANCHES : BRANCHES.filter(b => userBranchIds.includes(b.id));
+  fillSelect('branch-select',
+    visibleBranches.map(b => ({ value: b.id, label: b.icon + ' ' + b.name })),
+    state.branch
+  );
+  document.getElementById('branch-select').onchange = (e) => {
+    state.branch = e.target.value;
+    state.view = 'all'; // reset view when switching branches
+    saveLocal();
+    syncOrderBtnVisibility();
+    render();
+  };
+  // Hide branch switcher entirely if user has only one branch (avoid clutter)
+  if (visibleBranches.length <= 1) {
+    document.querySelector('.branch-switcher').style.display = 'none';
+  }
+
+  // Logout button
+  document.getElementById('logout-btn')?.addEventListener('click', logout);
+
+  // close modal on bg click
+  document.querySelectorAll('.modal-bg').forEach(bg => {
+    bg.addEventListener('click', (e) => { if (e.target === bg) bg.classList.remove('open'); });
+  });
+  // keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-bg').forEach(bg => bg.classList.remove('open'));
+      closeMobileSidebar();
+    }
+    if (e.key === 'n' && !e.target.matches('input,textarea,[contenteditable=true]')) openTaskModal();
+  });
+
+  // MOBILE: hamburger menu opens/closes the sidebar drawer
+  const menuBtn = document.getElementById('mobile-menu-btn');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (menuBtn) menuBtn.onclick = () => {
+    document.querySelector('.sidebar').classList.add('open');
+    backdrop.classList.add('open');
+  };
+  if (backdrop) backdrop.onclick = closeMobileSidebar;
+  // Auto-close after picking a view, project, or branch on mobile
+  document.querySelectorAll('.nav-item, .project-item').forEach(el => {
+    el.addEventListener('click', closeMobileSidebar, { capture: true });
+  });
+  // Re-bind project-item close handler each render via a delegated listener
+  document.querySelector('.sidebar')?.addEventListener('click', (e) => {
+    if (e.target.closest('.project-item')) closeMobileSidebar();
+  });
+  document.getElementById('branch-select')?.addEventListener('change', closeMobileSidebar);
+}
+function closeMobileSidebar() {
+  document.querySelector('.sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-backdrop')?.classList.remove('open');
+}
+
+/* -------------------- AUTH (Google Sign-In) --------------------
+   Flow:
+   1. Page loads → showLoginScreen() unless we have a cached session (<24h old).
+   2. Google Identity Services renders the sign-in button.
+   3. User clicks → Google returns a JWT credential.
+   4. We decode the JWT, extract email, match to TEAM member.
+   5. Match success → setUser() + showApp().
+   6. Match fail → showLoginError() with explanation.
+*/
+
+function decodeJwt(token) {
+  // JWT format: header.payload.signature — payload is base64url-encoded JSON
+  try {
+    const payload = token.split('.')[1];
+    // base64url → base64
+    const b64 = payload.replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(decodeURIComponent(escape(atob(b64))));
+  } catch (e) { return null; }
+}
+
+function findTeamMemberByEmail(email) {
+  if (!email) return null;
+  const lower = email.toLowerCase().trim();
+  return TEAM.find(m => {
+    if ((m.email || '').toLowerCase().trim() === lower) return true;
+    // Aliases let one staff member sign in with multiple emails
+    // (e.g. work email + personal Gmail). Order doesn't matter for matching.
+    if (Array.isArray(m.aliases) && m.aliases.some(a => (a || '').toLowerCase().trim() === lower)) return true;
+    return false;
+  });
+}
+
+function setUser(member, googleProfile) {
+  state.user = {
+    ...member,
+    email: googleProfile.email,
+    picture: googleProfile.picture || '',
+    googleName: googleProfile.name || member.name,
+  };
+  state.me = member.id;
+  state.isCEO = (member.id === 'CEO');
+  state.myLevel = member.level || 0;
+  // Constrain branch to one the user actually belongs to
+  if (member.branches && member.branches.length && !member.branches.includes(state.branch)) {
+    state.branch = member.branches[0];
+  }
+  // Persist a lightweight session — we don't store the JWT, just the matched ID
+  localStorage.setItem('userId', member.id);
+  localStorage.setItem('userLoginAt', String(Date.now()));
+}
+
+function handleCredentialResponse(response) {
+  const payload = decodeJwt(response.credential);
+  if (!payload || !payload.email) {
+    return showLoginError('Google-аас имэйл уншиж чадсангүй. Дахин оролдоорой.');
+  }
+  const member = findTeamMemberByEmail(payload.email);
+  if (!member) {
+    return showLoginError(
+      'Таны имэйл "' + payload.email + '" нь системд бүртгэлгүй байна. ' +
+      'CEO-той холбогдож имэйлээ нэмүүлээрэй.'
+    );
+  }
+  setUser(member, payload);
+  showApp();
+  bootApp();
+}
+
+// Single entry point for fully booting the app once the user is authenticated.
+// Safe to call multiple times — initEvents is idempotent because we check _eventsBound.
+let _eventsBound = false;
+async function bootApp() {
+  if (!_eventsBound) {
+    initEvents();
+    _eventsBound = true;
+  }
+  await loadData();
+  render();
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').style.display = '';
+  renderUserChip();
+}
+
+function renderUserChip() {
+  if (!state.user) return;
+  document.getElementById('user-name').textContent = state.user.name;
+  document.getElementById('user-role').textContent = state.user.role;
+  const avatar = document.getElementById('user-avatar');
+  if (state.user.picture) {
+    avatar.innerHTML = '<img src="' + state.user.picture + '" alt="" referrerpolicy="no-referrer">';
+  } else {
+    avatar.textContent = state.user.name.replace(/\./g,'').slice(0,2);
+  }
+}
+
+function logout() {
+  if (!confirm('Гарах уу?')) return;
+  localStorage.removeItem('userId');
+  localStorage.removeItem('userLoginAt');
+  state.user = null;
+  state.me = null;
+  state.isCEO = false;
+  // Disable Google one-tap auto-select on next visit
+  if (window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.disableAutoSelect();
+  }
+  location.reload();
+}
+
+function tryRestoreSession() {
+  // Lightweight session restore — if we have a recent userId, use it without forcing re-auth.
+  // Hard cap: 24 hours, after which we make the user sign in again.
+  const userId = localStorage.getItem('userId');
+  const loginAt = parseInt(localStorage.getItem('userLoginAt') || '0', 10);
+  const ageMs = Date.now() - loginAt;
+  if (!userId || ageMs > 24 * 60 * 60 * 1000) return false;
+  const member = TEAM.find(m => m.id === userId);
+  if (!member) return false;
+  // Restore without picture (we didn't cache it) — user chip will show initials
+  state.user = { ...member, email: member.email, picture: '', googleName: member.name };
+  state.me = member.id;
+  state.isCEO = (member.id === 'CEO');
+  state.myLevel = member.level || 0;
+  if (member.branches && member.branches.length && !member.branches.includes(state.branch)) {
+    state.branch = member.branches[0];
+  }
+  return true;
+}
+
+/* PIN-based authentication — works in iOS PWA standalone (no Google webview restrictions).
+   Each TEAM member has a 4-digit `pin`. User picks their name + enters PIN to sign in. */
+
+function initPinLogin() {
+  // Populate the user dropdown with everyone who has a PIN configured
+  const sel = document.getElementById('login-user-select');
+  sel.innerHTML = '<option value="" disabled selected>— Сонгох —</option>';
+  TEAM.filter(m => m.pin).forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.name + ' · ' + m.role;
+    sel.appendChild(opt);
+  });
+
+  const form = document.getElementById('pin-login-form');
+  const pinInput = document.getElementById('login-pin-input');
+  // Auto-submit when 4 digits entered (faster UX on mobile)
+  pinInput.addEventListener('input', () => {
+    pinInput.value = pinInput.value.replace(/\D/g,'').slice(0,4);
+    if (pinInput.value.length === 4) {
+      // Defer slightly so the keyboard "done" UX feels natural
+      setTimeout(() => form.requestSubmit(), 80);
+    }
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const userId = sel.value;
+    const pin = pinInput.value.trim();
+    handlePinLogin(userId, pin);
+  });
+}
+
+function handlePinLogin(userId, pin) {
+  if (!userId) return showLoginError('Нэрээ сонгоно уу.');
+  if (!/^\d{4}$/.test(pin)) return showLoginError('PIN нь 4 оронтой тоо байх ёстой.');
+  const member = TEAM.find(m => m.id === userId);
+  if (!member) return showLoginError('Хэрэглэгч олдсонгүй. CEO-той холбогдоорой.');
+  if (!member.pin || member.pin !== pin) {
+    document.getElementById('login-pin-input').value = '';
+    return showLoginError('PIN буруу байна. Дахин оролдоорой эсвэл CEO-той холбогдоорой.');
+  }
+  // Success — same setUser flow as before, just without Google profile data
+  setUser(member, { email: member.email || '', name: member.name, picture: '' });
+  showApp();
+  bootApp();
+}
+
+(async function start() {
+  // STAFF SYNC — load fresh team roster from Master Sheet (background).
+  // Cache hit is instant; API fetch happens async + re-renders if data changes.
+  loadTeamFromCache();
+  loadTeamFromAPI().then(updated => {
+    if (!updated) return;
+    // If still on login screen, repopulate the PIN dropdown with fresh names.
+    // If already in the app, re-render so assignee selects reflect new staff.
+    if (!state.user) initPinLogin();
+    else render();
+  });
+
+  // Restore a recent session if we have one; otherwise show PIN login.
+  if (tryRestoreSession()) {
+    showApp();
+    bootApp();
+  } else {
+    showLoginScreen();
+    initPinLogin();
+  }
+})();
+
+/* -------------------- PWA: register service worker -------------------- */
+// Only registers on http(s) (skips file:// — double-clicked local files won't try to register).
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      console.log('SW registered:', reg.scope);
+      // When a new SW takes control, reload the page so users get the latest UI
+      // without having to delete + re-add the PWA from home screen.
+      let firstRegister = !navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (firstRegister) { firstRegister = false; return; }
+        console.log('SW updated — reloading');
+        location.reload();
+      });
+      // Check for updates regularly (every 60s while open) so phones pick up new code
+      setInterval(() => reg.update().catch(()=>{}), 60_000);
+    }).catch((err) => {
+      console.warn('SW register failed:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>

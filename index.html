@@ -103,15 +103,23 @@
   .btn:hover { background: #f6f7f9; }
   .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
   .btn-primary:hover { background: #4338ca; }
+  .btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); font-weight: 600; }
+  .btn-danger:hover { background: #b91c1c; }
   .toolbar {
     display: flex; align-items: center; gap: 10px;
     padding: 12px 28px; background: #fff; border-bottom: 1px solid var(--border);
   }
   .filter-pill {
-    border: 1px solid var(--border); background: #fff; padding: 4px 10px; border-radius: 999px;
-    font-size: 12px; color: var(--muted); cursor: pointer;
+    border: 1px solid var(--border); background: #fff; padding: 7px 14px; border-radius: 999px;
+    font-size: 13px; color: var(--muted); cursor: pointer;
+    min-height: 32px; display: inline-flex; align-items: center;
+    transition: background .12s, border-color .12s;
   }
+  .filter-pill:hover { background: #f6f7f9; }
   .filter-pill.active { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-soft); font-weight: 600; }
+  @media (max-width: 720px) {
+    .filter-pill { padding: 9px 16px; min-height: 38px; font-size: 13px; }
+  }
   .search { flex: 1; max-width: 280px; }
   .search input {
     width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
@@ -239,7 +247,9 @@
   .empty {
     text-align: center; color: var(--muted); padding: 80px 20px;
   }
-  .empty .icon { font-size: 40px; margin-bottom: 10px; }
+  .empty .icon { font-size: 56px; margin-bottom: 16px; opacity: .85; }
+  .empty .title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty .sub { font-size: 13px; color: var(--muted); }
   /* CONNECTION STATUS */
   .conn-status {
     position: fixed; bottom: 14px; right: 18px; padding: 6px 12px; border-radius: 999px;
@@ -337,51 +347,159 @@
   }
   .user-chip .logout-btn:hover { background: #f1f3f5; color: var(--danger); }
 
-  /* NOTIFICATION BELL + PANEL */
-  .bell-btn { position: relative; padding: 6px 10px; font-size: 16px; }
-  .notif-badge {
-    position: absolute; top: 0px; right: 2px;
-    background: var(--danger); color: #fff;
-    border-radius: 999px; padding: 1px 5px;
-    font-size: 9px; font-weight: 700; line-height: 1;
-    min-width: 16px; text-align: center;
-    border: 1.5px solid #fff;
+  /* TOAST + CONFIRM (alert/confirm-ийг сольсон) */
+  .toast-stack {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center;
+    pointer-events: none; width: max-content; max-width: 92%;
   }
+  .toast {
+    background: #1f2328; color: #fff; padding: 12px 18px; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15,23,42,.25);
+    font-size: 13px; line-height: 1.4; max-width: 460px;
+    display: flex; align-items: center; gap: 10px;
+    animation: toast-in .25s ease-out;
+    pointer-events: auto;
+  }
+  .toast.success { background: #15803d; }
+  .toast.error   { background: #b91c1c; }
+  .toast.warn    { background: #b45309; }
+  .toast .toast-icon { font-size: 18px; line-height: 1; }
+  @keyframes toast-in {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+  .confirm-dialog {
+    background: #fff; border-radius: 14px; padding: 22px;
+    max-width: 360px; width: 92%; box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  }
+  .confirm-dialog h3 { margin: 0 0 8px; font-size: 16px; }
+  .confirm-dialog p  { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .confirm-dialog .actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* NOTIFICATION BELL + DRAWER */
+  .bell-btn {
+    position: relative;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .bell-btn:hover { background: #f6f7f9; }
+  .bell-btn svg { width: 18px; height: 18px; display: block; }
+  .bell-btn.has-unread svg { color: var(--primary); }
+  @keyframes bell-shake {
+    0%, 100% { transform: rotate(0); }
+    20%, 60% { transform: rotate(-12deg); }
+    40%, 80% { transform: rotate(12deg); }
+  }
+  .bell-btn.has-unread svg { animation: bell-shake .6s ease-in-out 1; transform-origin: 50% 20%; }
+  .notif-badge {
+    position: absolute; top: -6px; right: -6px;
+    background: var(--danger); color: #fff;
+    border-radius: 999px;
+    padding: 0 6px;
+    min-width: 20px; height: 20px;
+    font-size: 11px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 2px solid #fff;
+    line-height: 1;
+  }
+  /* DESKTOP: dropdown panel */
   .notif-panel {
-    position: absolute; top: 66px; right: 16px;
+    position: fixed; top: 64px; right: 16px;
     background: #fff; border: 1px solid var(--border);
-    border-radius: 12px; box-shadow: 0 10px 32px rgba(15,23,42,.18);
-    width: 340px; max-height: 480px;
-    z-index: 90;
+    border-radius: 12px; box-shadow: 0 12px 36px rgba(15,23,42,.20);
+    width: 380px; max-width: calc(100vw - 32px);
+    max-height: 70vh;
+    z-index: 110;
     display: flex; flex-direction: column;
     overflow: hidden;
   }
+  .notif-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 105;
+  }
+  .notif-backdrop.open { display: block; }
   .notif-header {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 16px; border-bottom: 1px solid var(--border);
-    font-weight: 600; font-size: 13px;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    font-weight: 600; font-size: 15px;
+  }
+  .notif-header .close-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); padding: 4px; font-size: 20px; line-height: 1;
+    display: none;
   }
   .notif-mark-read {
     background: none; border: none; color: var(--primary);
-    font-size: 11px; cursor: pointer; padding: 4px 6px;
+    font-size: 12px; cursor: pointer; padding: 6px 10px;
+    border-radius: 6px;
   }
-  .notif-mark-read:hover { text-decoration: underline; }
-  .notif-list { overflow-y: auto; max-height: 420px; }
+  .notif-mark-read:hover { background: var(--primary-soft); text-decoration: none; }
+  .notif-list { overflow-y: auto; flex: 1; }
   .notif-item {
-    display: flex; gap: 10px; align-items: flex-start;
-    padding: 10px 16px; border-bottom: 1px solid #f1f3f5;
-    cursor: pointer;
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 14px 18px; border-bottom: 1px solid #f1f3f5;
+    cursor: pointer; transition: background .12s;
   }
   .notif-item:hover { background: #fafbfc; }
   .notif-item.unread { background: var(--primary-soft); }
   .notif-item.unread:hover { background: #e0e7ff; }
-  .notif-icon { font-size: 18px; flex-shrink: 0; line-height: 1.2; }
+  .notif-item.unread::before {
+    content: ''; position: absolute; margin-left: -10px; margin-top: 8px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--primary);
+  }
+  .notif-icon {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #f1f3f5;
+    color: var(--muted);
+  }
+  .notif-icon svg { width: 18px; height: 18px; }
+  .notif-icon.assigned    { background: var(--primary-soft); color: var(--primary); }
+  .notif-icon.overdue     { background: #fee2e2; color: var(--danger); }
+  .notif-icon.due_today   { background: #fef3c7; color: var(--warn); }
+  .notif-icon.stage_unlock{ background: #dcfce7; color: var(--ok); }
   .notif-body { flex: 1; min-width: 0; }
-  .notif-msg { font-size: 13px; color: var(--text); }
-  .notif-time { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .notif-msg { font-size: 14px; color: var(--text); line-height: 1.4; }
+  .notif-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
   .notif-empty {
-    padding: 32px 16px; text-align: center;
-    color: var(--muted); font-size: 12px;
+    padding: 56px 24px; text-align: center;
+    color: var(--muted);
+  }
+  .notif-empty .icon {
+    font-size: 48px; margin-bottom: 10px; opacity: .35;
+  }
+  .notif-empty .title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .notif-empty .sub { font-size: 12px; }
+
+  /* MOBILE: bottom sheet drawer */
+  @media (max-width: 720px) {
+    .notif-panel {
+      top: auto; bottom: 0; right: 0; left: 0;
+      width: 100%; max-width: 100%;
+      border-radius: 16px 16px 0 0;
+      max-height: 85vh;
+      animation: drawer-up .25s ease-out;
+    }
+    .notif-header .close-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; }
+    .notif-header .close-btn:hover { background: #f1f3f5; }
+    .notif-item { padding: 16px 18px; }
+    .notif-icon { width: 40px; height: 40px; }
+    .notif-msg { font-size: 15px; }
+  }
+  @keyframes drawer-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
   }
 
   /* MOBILE HAMBURGER */
@@ -526,19 +644,27 @@
         <div class="sub" id="view-sub">Бүх checklist</div>
       </div>
       <div class="header-actions">
-        <button class="btn bell-btn" id="notif-btn" title="Мэдэгдэл" aria-label="Мэдэгдэл">
-          🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span>
+        <button class="bell-btn" id="notif-btn" aria-label="Мэдэгдэл">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+          </svg>
+          <span class="notif-badge" id="notif-badge" style="display:none">0</span>
         </button>
-        <button class="btn" id="settings-btn">⚙</button>
-        <button class="btn" id="new-order-btn" style="display:none" title="5 дамжлагат акт автоматаар үүснэ">📋 Шинэ захиалга</button>
+        <button class="btn" id="settings-btn" aria-label="Тохиргоо">⚙</button>
+        <button class="btn" id="new-order-btn" style="display:none" title="5 дамжлагат акт автоматаар үүснэ">📋 Захиалга</button>
         <button class="btn btn-primary" id="new-task-btn">+ Шинэ</button>
       </div>
 
-      <!-- Notification panel (popover) -->
+      <!-- Notification drawer (mobile: bottom sheet, desktop: dropdown) -->
+      <div class="notif-backdrop" id="notif-backdrop"></div>
       <div class="notif-panel" id="notif-panel" hidden>
         <div class="notif-header">
           <span>Мэдэгдэл</span>
-          <button class="notif-mark-read" id="notif-mark-all">Бүгдийг уншсан</button>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="notif-mark-read" id="notif-mark-all">Бүгдийг уншсан</button>
+            <button class="close-btn" id="notif-close" aria-label="Хаах">×</button>
+          </div>
         </div>
         <div class="notif-list" id="notif-list"></div>
       </div>
@@ -635,6 +761,19 @@
     <div class="modal-actions">
       <button class="btn" id="o-cancel">Болих</button>
       <button class="btn btn-primary" id="o-save">5 дамжлагаар үүсгэх</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast + Confirm dialog containers -->
+<div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+<div class="modal-bg" id="confirm-modal" role="dialog" aria-modal="true">
+  <div class="confirm-dialog">
+    <h3 id="confirm-title">Баталгаажуул</h3>
+    <p id="confirm-msg"></p>
+    <div class="actions">
+      <button class="btn" id="confirm-cancel">Болих</button>
+      <button class="btn btn-primary" id="confirm-ok">Тийм</button>
     </div>
   </div>
 </div>
@@ -769,6 +908,47 @@ const state = {
   notifications: [], // {id, type, taskId, msg, ts, read}
 };
 
+/* -------------------- TOAST / CONFIRM (alert/confirm орлуулсан) --------------------
+   showToast(msg, type)            — fire-and-forget banner. Type: '', 'success', 'error', 'warn'.
+   showConfirm(msg, opts)          — Returns Promise<boolean>. opts: {title, okText, cancelText}.
+   App-н бүх alert/confirm-ийг эдгээрээр сольсон. Mobile-д native popup-ын оронд in-app drawer. */
+function showToast(msg, type = '', timeoutMs = 3500) {
+  const stack = document.getElementById('toast-stack');
+  if (!stack) return console.log('[toast]', msg);
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  const icon = { success: '✓', error: '✕', warn: '⚠' }[type] || 'ⓘ';
+  el.innerHTML = `<span class="toast-icon">${icon}</span><span>${escapeHtml(msg)}</span>`;
+  stack.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = 'opacity .2s';
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 220);
+  }, timeoutMs);
+}
+function showConfirm(msg, opts = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    document.getElementById('confirm-title').textContent = opts.title || 'Баталгаажуул';
+    document.getElementById('confirm-msg').textContent = msg;
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
+    okBtn.textContent = opts.okText || 'Тийм';
+    cancelBtn.textContent = opts.cancelText || 'Болих';
+    okBtn.className = 'btn ' + (opts.danger ? 'btn-danger' : 'btn-primary');
+    function cleanup(result) {
+      modal.classList.remove('open');
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      resolve(result);
+    }
+    okBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    modal.classList.add('open');
+    setTimeout(() => okBtn.focus(), 50);
+  });
+}
+
 /* -------------------- IN-APP NOTIFICATIONS --------------------
    Client-side generated from task data. 4 төрөл:
      - assigned     — шинэ task надад оноогдсон
@@ -894,27 +1074,37 @@ function markAllNotificationsRead() {
 function renderNotifications() {
   const count = unreadCount();
   const badge = document.getElementById('notif-badge');
+  const bell = document.getElementById('notif-btn');
   if (badge) {
     badge.textContent = count > 99 ? '99+' : count;
     badge.style.display = count > 0 ? '' : 'none';
   }
+  if (bell) bell.classList.toggle('has-unread', count > 0);
+
   const list = document.getElementById('notif-list');
   if (!list) return;
   if (!state.notifications.length) {
-    list.innerHTML = '<div class="notif-empty">Мэдэгдэл алга байна.</div>';
+    list.innerHTML = `
+      <div class="notif-empty">
+        <div class="icon">🔕</div>
+        <div class="title">Мэдэгдэл алга байна</div>
+        <div class="sub">Шинэ ажил оноогдох эсвэл хугацаа дөхөхөд энд харагдана.</div>
+      </div>`;
     return;
   }
-  const icons = {
-    assigned: '📥',
-    overdue: '⚠️',
-    due_today: '📅',
-    stage_unlock: '✅',
+  // SVG icons per notification type (inline so they inherit currentColor)
+  const ICON_SVG = {
+    assigned:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>',
+    overdue:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>',
+    due_today:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>',
+    stage_unlock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
   };
   list.innerHTML = state.notifications.map(n => {
     const ago = notifTimeAgo(n.ts);
+    const icon = ICON_SVG[n.type] || ICON_SVG.assigned;
     return `
       <div class="notif-item ${n.read ? '' : 'unread'}" data-task-id="${escapeHtml(n.taskId)}" data-notif-id="${escapeHtml(n.id)}">
-        <div class="notif-icon">${icons[n.type] || '🔔'}</div>
+        <div class="notif-icon ${escapeHtml(n.type)}">${icon}</div>
         <div class="notif-body">
           <div class="notif-msg">${escapeHtml(n.msg)}</div>
           <div class="notif-time">${ago}</div>
@@ -928,11 +1118,23 @@ function renderNotifications() {
       const notifId = el.dataset.notifId;
       const n = state.notifications.find(x => x.id === notifId);
       if (n) { n.read = true; saveNotifications(); }
-      document.getElementById('notif-panel').hidden = true;
+      closeNotifDrawer();
       if (taskId) openTaskModal(taskId);
       renderNotifications();
     };
   });
+}
+
+function openNotifDrawer() {
+  document.getElementById('notif-backdrop').classList.add('open');
+  document.getElementById('notif-panel').hidden = false;
+  renderNotifications();
+  // Vibration cue on mobile when opening — gentle feedback
+  if ('vibrate' in navigator) try { navigator.vibrate(15); } catch(e) {}
+}
+function closeNotifDrawer() {
+  document.getElementById('notif-backdrop').classList.remove('open');
+  document.getElementById('notif-panel').hidden = true;
 }
 function notifTimeAgo(ts) {
   const diff = Date.now() - ts;
@@ -1036,11 +1238,18 @@ async function loadData() {
   loadLocal();
 }
 function loadLocal() {
-  // Tasks
+  // Tasks — seed-уудыг ЗӨВХӨН (а) хоосон localStorage, (b) CEO нэвтэрсэн, (c) backend огт холбогдоогүй
+  // нөхцөлд оруулна. Эс бөгөөс жинхэнэ дата дээр хуурамч demo task-ууд гарах эрсдэлтэй.
   try {
     const raw = localStorage.getItem('tasks');
-    state.tasks = raw ? JSON.parse(raw) : seedTasks();
-  } catch(e) { state.tasks = seedTasks(); }
+    if (raw) {
+      state.tasks = JSON.parse(raw);
+    } else if (state.isCEO && !state.config.apiUrl) {
+      state.tasks = seedTasks();
+    } else {
+      state.tasks = [];
+    }
+  } catch(e) { state.tasks = []; }
   // Projects per branch — initialize from defaults, override with anything saved
   state.projectsByBranch = {};
   Object.keys(PROJECTS_BY_BRANCH).forEach(b => {
@@ -1362,10 +1571,22 @@ function renderTaskList() {
   const tasks = filteredTasks();
   wrap.innerHTML = '';
   if (!tasks.length) {
-    wrap.innerHTML = '<div class="empty"><div class="icon">📋</div>Энд даалгавар алга. + Шинэ даалгавар дарж нэмнэ үү.</div>';
+    wrap.innerHTML = emptyStateHtml();
     return;
   }
   tasks.forEach(t => wrap.appendChild(renderRow(t)));
+}
+function emptyStateHtml() {
+  // View-ийн дагуу contextual empty state
+  let icon = '📋', title = 'Даалгавар алга', sub = '+ Шинэ дарж нэмнэ үү';
+  const v = state.view;
+  if (v === 'mine')     { icon = '🎯'; title = 'Танд оноосон ажил алга'; sub = 'Бүх ажилаа дуусгасан байна. Сайн байна!'; }
+  else if (v === 'overdue') { icon = '🎉'; title = 'Хоцорсон даалгавар алга'; sub = 'Бүх хугацаа дотроо явж байна.'; }
+  else if (v === 'today')   { icon = '☕'; title = 'Өнөөдөр дуусах юм алга'; sub = 'Тайван өдөр болж байна.'; }
+  else if (v === 'done')    { icon = '🗂'; title = 'Дууссан ажил алга'; sub = 'Шинэ ажилаа эхлээрэй.'; }
+  else if (state.statusFilter === 'done') { icon = '✅'; title = 'Дуусгасан ажил алга'; sub = 'Идэвхтэй ажлуудаа үргэлжлүүл.'; }
+  else if (state.search)    { icon = '🔍'; title = `"${state.search}" гэж олдсонгүй`; sub = 'Өөр түлхүүр үг туршаарай.'; }
+  return `<div class="empty"><div class="icon">${icon}</div><div class="title">${escapeHtml(title)}</div><div class="sub">${escapeHtml(sub)}</div></div>`;
 }
 function renderRow(t) {
   const row = document.createElement('div');
@@ -1412,7 +1633,7 @@ function renderRow(t) {
       </div>
     </div>
     <div class="col-assignee">
-      <span class="assignee-chip" data-act="open" title="${t.createdBy && t.createdBy !== t.assignee ? escapeHtml(memberName(t.createdBy)) + ' → ' + escapeHtml(memberName(t.assignee)) : 'Өөрөө оноосон'}">
+      <span class="assignee-chip" data-act="open" title="${escapeHtml(t.createdBy && t.createdBy !== t.assignee ? memberName(t.createdBy) + ' → ' + memberName(t.assignee) : 'Өөрөө оноосон')}">
         <span class="avatar">${escapeHtml(memberInitials(t.assignee))}</span>
         ${escapeHtml(memberName(t.assignee))}
       </span>
@@ -1441,7 +1662,7 @@ function renderRow(t) {
     else if (act === 'locked') {
       const can = canDeleteTask(t);
       const who = can.creator ? `${can.creator.name} (${can.creator.role})` : 'дээд албан тушаалтан';
-      alert(`${who} үүсгэсэн даалгавар. Устгах эрх танд алга.\nБиелүүлсэн бол ✓ тэмдэглээрэй.`);
+      showToast(`${who} үүсгэсэн даалгавар. Устгах эрх танд алга. Биелүүлсэн бол ✓ тэмдэглээрэй.`, 'warn', 4500);
     }
     else if (act === 'edit-title') {
       const el = e.target;
@@ -1493,21 +1714,21 @@ function escapeHtml(s) {
 }
 
 /* -------------------- ACTIONS -------------------- */
-function toggleTask(id) {
+async function toggleTask(id) {
   const t = state.tasks.find(x=>x.id===id); if (!t) return;
   // Going from open → done: enforce 5-stage dependency for act sub-tasks
   if (t.status !== 'done') {
     const block = canCompleteSubtask(t);
     if (!block.ok) {
       const prev = block.prev;
-      alert(`Энэ дамжлагыг дуусгахын өмнө "${prev.title}" дуусгасан байх ёстой.\n\nХариуцагч: ${memberName(prev.assignee)}`);
+      showToast(`Энэ дамжлагыг дуусгахын өмнө "${prev.title}" дуусгасан байх ёстой. Хариуцагч: ${memberName(prev.assignee)}`, 'warn', 4500);
       return;
     }
   } else {
     // Going from done → open: warn if a later stage is already done (would create inconsistency)
     if (t.kind === 'act_stage' && t.parent_id) {
       const next = state.tasks.find(x => x.parent_id === t.parent_id && Number(x.stage) === Number(t.stage) + 1 && x.status === 'done');
-      if (next && !confirm(`Дараагийн дамжлага "${next.title}" аль хэдийн дуусчихсан байна. Энэ дамжлагыг буцаах уу?`)) return;
+      if (next && !(await showConfirm(`Дараагийн дамжлага "${next.title}" аль хэдийн дуусчихсан байна. Энэ дамжлагыг буцаах уу?`, { okText: 'Буцаах', danger: true }))) return;
     }
   }
   t.status = t.status === 'done' ? 'open' : 'done';
@@ -1540,20 +1761,20 @@ function canDeleteTask(t) {
   }
   return { ok: true };
 }
-function deleteTask(id) {
+async function deleteTask(id) {
   const t = state.tasks.find(x=>x.id===id);
   if (!t) return;
   // Hierarchical access control — block delete of higher-rank tasks
   const check = canDeleteTask(t);
   if (!check.ok) {
     const who = check.creator ? `${check.creator.name} (${check.creator.role})` : 'дээд албан тушаалтан';
-    alert(`Энэ даалгаврыг ${who} үүсгэсэн тул устгах эрх танд алга. Биелүүлсэн бол ✓ тэмдэглээрэй, эсвэл удирдагчдаа ярь.`);
+    showToast(`Энэ даалгаврыг ${who} үүсгэсэн тул устгах эрх танд алга. Биелүүлсэн бол ✓ тэмдэглээрэй.`, 'warn', 4500);
     return;
   }
   // Special confirm + cascade for 5-stage act parents
   if (t.kind === 'act_parent') {
     const subs = state.tasks.filter(x => x.parent_id === t.id);
-    if (!confirm(`"${t.title}" + ${subs.length} sub-task бүгдийг хамт устгах уу?`)) return;
+    if (!(await showConfirm(`"${t.title}" + ${subs.length} sub-task бүгдийг хамт устгана. Та итгэлтэй байна уу?`, { okText: 'Устгах', danger: true }))) return;
     const idsToRemove = new Set([t.id, ...subs.map(s => s.id)]);
     state.tasks = state.tasks.filter(x => !idsToRemove.has(x.id));
     saveTask(t, true);
@@ -1561,7 +1782,7 @@ function deleteTask(id) {
     render();
     return;
   }
-  if (!confirm('Энэ даалгаврыг устгах уу?')) return;
+  if (!(await showConfirm('Энэ даалгаврыг устгах уу?', { okText: 'Устгах', danger: true }))) return;
   state.tasks = state.tasks.filter(x=>x.id!==id);
   saveTask(t, true);
   render();
@@ -1606,7 +1827,7 @@ function closeTaskModal() {
 }
 function saveTaskFromModal() {
   const title = document.getElementById('t-title').value.trim();
-  if (!title) { alert('Гарчиг шаардлагатай'); return; }
+  if (!title) { showToast('Гарчиг шаардлагатай', 'warn'); return; }
   const data = {
     title,
     desc: document.getElementById('t-desc').value.trim(),
@@ -1710,8 +1931,8 @@ function initEvents() {
     const eventDate = document.getElementById('o-date').value;
     const location = document.getElementById('o-location').value.trim();
     const desc = document.getElementById('o-desc').value.trim();
-    if (!customer) { alert('Үйлчлүүлэгчийн нэр шаардлагатай'); return; }
-    if (!eventDate) { alert('Арга хэмжээний өдөр шаардлагатай'); return; }
+    if (!customer) { showToast('Үйлчлүүлэгчийн нэр шаардлагатай', 'warn'); return; }
+    if (!eventDate) { showToast('Арга хэмжээний өдөр шаардлагатай', 'warn'); return; }
     document.getElementById('o-save').disabled = true;
     try {
       await createOrderAct({ customer, eventDate, location, desc });
@@ -1765,19 +1986,17 @@ function initEvents() {
   // Logout button
   document.getElementById('logout-btn')?.addEventListener('click', logout);
 
-  // Notification bell — toggle panel
+  // Notification bell — toggle drawer
   const notifBtn = document.getElementById('notif-btn');
   const notifPanel = document.getElementById('notif-panel');
+  const notifBackdrop = document.getElementById('notif-backdrop');
   notifBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    notifPanel.hidden = !notifPanel.hidden;
-    if (!notifPanel.hidden) renderNotifications();
+    if (notifPanel.hidden) openNotifDrawer();
+    else closeNotifDrawer();
   });
-  document.addEventListener('click', (e) => {
-    if (!notifPanel.hidden && !notifPanel.contains(e.target) && e.target !== notifBtn) {
-      notifPanel.hidden = true;
-    }
-  });
+  notifBackdrop?.addEventListener('click', closeNotifDrawer);
+  document.getElementById('notif-close')?.addEventListener('click', closeNotifDrawer);
   document.getElementById('notif-mark-all')?.addEventListener('click', markAllNotificationsRead);
 
   // close modal on bg click
@@ -1790,7 +2009,12 @@ function initEvents() {
       document.querySelectorAll('.modal-bg').forEach(bg => bg.classList.remove('open'));
       closeMobileSidebar();
     }
-    if (e.key === 'n' && !e.target.matches('input,textarea,[contenteditable=true]')) openTaskModal();
+    // Shortcut: "n" (latin) эсвэл "н" (Mongolian) — шинэ task
+    if ((e.key === 'n' || e.key === 'N' || e.key === 'н' || e.key === 'Н') &&
+        !e.target.matches('input,textarea,select,[contenteditable=true]')) {
+      e.preventDefault();
+      openTaskModal();
+    }
   });
 
   // MOBILE: hamburger menu opens/closes the sidebar drawer
@@ -1942,8 +2166,8 @@ function renderUserChip() {
   }
 }
 
-function logout() {
-  if (!confirm('Гарах уу?')) return;
+async function logout() {
+  if (!(await showConfirm('Гарах уу?', { okText: 'Гарах' }))) return;
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   localStorage.removeItem('userId');
   localStorage.removeItem('userLoginAt');

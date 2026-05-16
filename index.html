@@ -420,6 +420,10 @@
     display: flex; flex-direction: column;
     overflow: hidden;
   }
+  /* CRITICAL: hidden attribute override —
+     display:flex дээр [hidden] нь автоматаар display:none-руу шилжихгүй
+     учир заавал тодорхой override хэрэгтэй */
+  .notif-panel[hidden] { display: none !important; }
   .notif-backdrop {
     display: none;
     position: fixed; inset: 0;
@@ -2091,6 +2095,13 @@ function initEvents() {
   notifBackdrop?.addEventListener('click', closeNotifDrawer);
   document.getElementById('notif-close')?.addEventListener('click', closeNotifDrawer);
   document.getElementById('notif-mark-all')?.addEventListener('click', markAllNotificationsRead);
+  // Panel-аас гадуур дарвал хаах — backdrop click-ийг strengthening
+  document.addEventListener('click', (e) => {
+    if (notifPanel.hidden) return;
+    if (notifPanel.contains(e.target)) return;       // panel дотор
+    if (notifBtn && notifBtn.contains(e.target)) return; // bell товч дээр
+    closeNotifDrawer();
+  });
 
   // close modal on bg click
   document.querySelectorAll('.modal-bg').forEach(bg => {
@@ -2101,6 +2112,7 @@ function initEvents() {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal-bg').forEach(bg => bg.classList.remove('open'));
       closeMobileSidebar();
+      closeNotifDrawer();
     }
     // Shortcut: "n" (latin) эсвэл "н" (Mongolian) — шинэ task
     if ((e.key === 'n' || e.key === 'N' || e.key === 'н' || e.key === 'Н') &&

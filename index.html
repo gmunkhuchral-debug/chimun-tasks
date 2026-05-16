@@ -185,6 +185,16 @@
     background: #fef3c7; padding: 2px 6px; border-radius: 4px;
     margin-left: 6px;
   }
+  /* Finance request decision pills */
+  .finance-pill {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px; margin-left: 6px;
+  }
+  .finance-pill.pending  { background: #fef3c7; color: #92400e; }
+  .finance-pill.approved { background: #d1fae5; color: #065f46; }
+  .finance-pill.rejected { background: #fee2e2; color: #991b1b; }
+  .finance-pill.deferred { background: #e0e7ff; color: #3730a3; }
+  .finance-pill.executed { background: #dcfce7; color: #166534; }
   .checkbox {
     width: 18px; height: 18px; border: 2px solid #cfd4da; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
@@ -616,6 +626,9 @@
     <div class="nav-item" data-view="delegated">
       <span>Үүргэсэн</span><span class="count-badge" id="cnt-delegated">0</span>
     </div>
+    <div class="nav-item" data-view="finance">
+      <span>💸 Хүсэлт</span><span class="count-badge" id="cnt-finance">0</span>
+    </div>
     <div class="nav-item" data-view="overdue">
       <span>Хоцорсон</span><span class="count-badge" id="cnt-overdue">0</span>
     </div>
@@ -662,6 +675,7 @@
         </button>
         <button class="btn" id="settings-btn" aria-label="Тохиргоо">⚙</button>
         <button class="btn" id="new-order-btn" style="display:none" title="5 дамжлагат акт автоматаар үүснэ">📋 Захиалга</button>
+        <button class="btn" id="new-finance-btn" title="Санхүүгийн хүсэлт CEO-руу илгээх">💸 Хүсэлт</button>
         <button class="btn btn-primary" id="new-task-btn">+ Шинэ</button>
       </div>
 
@@ -770,6 +784,45 @@
     <div class="modal-actions">
       <button class="btn" id="o-cancel">Болих</button>
       <button class="btn btn-primary" id="o-save">5 дамжлагаар үүсгэх</button>
+    </div>
+  </div>
+</div>
+
+<!-- FINANCE REQUEST MODAL — submit + (CEO) decide -->
+<div class="modal-bg" id="finance-modal">
+  <div class="modal">
+    <h2 id="finance-modal-title">💸 Санхүүгийн хүсэлт</h2>
+    <div id="f-decision-info" style="display:none; font-size:12px; margin:-6px 0 14px; padding:10px 12px; border-radius:8px; line-height:1.5;"></div>
+    <label>Дүн (₮) *</label>
+    <input id="f-amount" type="number" min="0" step="1000" inputmode="numeric" placeholder="500000" />
+    <label>Хэнд төлөх (хүлээн авагч) *</label>
+    <input id="f-beneficiary" placeholder="Жишээ: Шинэст ХХК, Татварын газар" />
+    <label>Зорилго *</label>
+    <input id="f-purpose" placeholder="Жишээ: Тоног түрээсийн төлбөр, тооцоо тооцоолох" />
+    <label>Тайлбар / нэхэмжлэхийн дугаар</label>
+    <textarea id="f-justification" placeholder="Нэхэмжлэхийн №, гэрээний линк г.м."></textarea>
+    <label>Хүссэн огноо</label>
+    <input id="f-due" type="date" />
+
+    <!-- DECISION BUTTONS — зөвхөн CEO + pending хүсэлт үед харагдана -->
+    <div class="modal-actions" id="f-decision-actions" style="display:none; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-top:18px;">
+      <button class="btn" id="f-defer">🕐 Хойшлуулах</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-danger" id="f-reject">✗ Татгалзах</button>
+        <button class="btn btn-primary" id="f-approve">✓ Зөвшөөрөх</button>
+      </div>
+    </div>
+
+    <!-- EXECUTE BUTTON — S03 (Туслах нягтлан) approved хүсэлт үед -->
+    <div class="modal-actions" id="f-execute-actions" style="display:none; margin-top:18px;">
+      <button class="btn" id="f-execute-cancel">Хаах</button>
+      <button class="btn btn-primary" id="f-execute">✓ Гүйлгээ хийгдсэн гэж тэмдэглэх</button>
+    </div>
+
+    <!-- SUBMIT / VIEW ACTIONS -->
+    <div class="modal-actions" id="f-submit-actions" style="margin-top:18px;">
+      <button class="btn" id="f-cancel">Болих</button>
+      <button class="btn btn-primary" id="f-save">💸 Илгээх</button>
     </div>
   </div>
 </div>
@@ -1055,7 +1108,46 @@ function generateNotifications() {
     }
   });
 
-  // 5. STAGE UNLOCK — миний sub-task lock-оос гарсан
+  // 5. FINANCE — миний илгээсэн хүсэлтийн төлөв өөрчлөгдсөн (approved/rejected/deferred/executed)
+  state.tasks.filter(t => t.kind === 'finance_request' && t.createdBy === state.me).forEach(t => {
+    const stages = [
+      { key: 'approved', cond: t.decision === 'approved' && t.status !== 'done', msg: `✓ Зөвшөөрөгдсөн: ${t.beneficiary} — ${Number(t.amount).toLocaleString('mn-MN')}₮` },
+      { key: 'rejected', cond: t.decision === 'rejected', msg: `✗ Татгалзсан: ${t.beneficiary} — ${Number(t.amount).toLocaleString('mn-MN')}₮` },
+      { key: 'deferred', cond: t.decision === 'deferred', msg: `🕐 Хойшлогдсон: ${t.beneficiary} — ${Number(t.amount).toLocaleString('mn-MN')}₮` },
+      { key: 'executed', cond: t.status === 'done' && t.decision === 'approved' && t.executed_at, msg: `💵 Гүйлгээ хийгдсэн: ${t.beneficiary} — ${Number(t.amount).toLocaleString('mn-MN')}₮` },
+    ];
+    stages.forEach(s => {
+      if (!s.cond) return;
+      const nid = `finance-${s.key}-${t.id}`;
+      if (!seen.has(nid)) {
+        newOnes.push({ id: nid, type: 'stage_unlock', taskId: t.id, msg: s.msg, ts: Date.now(), read: false });
+      }
+    });
+  });
+
+  // 5b. FINANCE — CEO-д ирсэн pending хүсэлт + S03-д ирсэн approved хүсэлт
+  if (state.isCEO) {
+    state.tasks.filter(t => t.kind === 'finance_request' && t.decision === 'pending').forEach(t => {
+      const nid = `finance-pending-${t.id}`;
+      if (!seen.has(nid)) {
+        newOnes.push({ id: nid, type: 'assigned', taskId: t.id,
+          msg: `💸 Хүсэлт: ${memberName(t.createdBy)} — ${Number(t.amount).toLocaleString('mn-MN')}₮ (${t.beneficiary})`,
+          ts: Date.now(), read: false });
+      }
+    });
+  }
+  if (state.me === FINANCE_EXECUTOR_ID) {
+    state.tasks.filter(t => t.kind === 'finance_request' && t.decision === 'approved' && t.status !== 'done').forEach(t => {
+      const nid = `finance-execute-${t.id}`;
+      if (!seen.has(nid)) {
+        newOnes.push({ id: nid, type: 'assigned', taskId: t.id,
+          msg: `💸 Гүйлгээ хийх: ${t.beneficiary} — ${Number(t.amount).toLocaleString('mn-MN')}₮`,
+          ts: Date.now(), read: false });
+      }
+    });
+  }
+
+  // 6. STAGE UNLOCK — миний sub-task lock-оос гарсан
   myTasks.filter(t => t.kind === 'act_stage' && t.parent_id && Number(t.stage) > 1).forEach(t => {
     if (t.status !== 'open') return;
     const prev = state.tasks.find(x =>
@@ -1138,7 +1230,11 @@ function renderNotifications() {
       const n = state.notifications.find(x => x.id === notifId);
       if (n) { n.read = true; saveNotifications(); }
       closeNotifDrawer();
-      if (taskId) openTaskModal(taskId);
+      if (taskId) {
+        const task = state.tasks.find(x => x.id === taskId);
+        if (task && task.kind === 'finance_request') openFinanceModal(taskId);
+        else openTaskModal(taskId);
+      }
       renderNotifications();
     };
   });
@@ -1217,7 +1313,8 @@ function currentBranchInfo() {
 // (e.g. assignee "001" → 1). Normalize so render code can rely on consistent types.
 function normalizeTask(t) {
   if (!t || typeof t !== 'object') return t;
-  const stringFields = ['id','title','desc','branch','project','assignee','due','priority','status','kpi_code','createdBy','parent_id','kind'];
+  const stringFields = ['id','title','desc','branch','project','assignee','due','priority','status','kpi_code','createdBy','parent_id','kind',
+    'decision','decision_at','decision_by','executed_at','executed_by','purpose','beneficiary','justification'];
   const out = { ...t };
   for (const f of stringFields) {
     if (out[f] != null) out[f] = String(out[f]);
@@ -1227,6 +1324,8 @@ function normalizeTask(t) {
   if (/^\d{1,2}$/.test(out.createdBy)) out.createdBy = out.createdBy.padStart(3, '0');
   // `stage` is numeric (1-5). Google Sheets may return it as string.
   if (out.stage != null && out.stage !== '') out.stage = Number(out.stage) || null;
+  // `amount` is numeric (₮). Sheets may return as string.
+  if (out.amount != null && out.amount !== '') out.amount = Number(out.amount) || 0;
   return out;
 }
 
@@ -1396,6 +1495,159 @@ async function createOrderAct({ customer, eventDate, location, desc }) {
   return parent;
 }
 
+/* -------------------- ФИНАНСЫН ХҮСЭЛТ (Finance request) --------------------
+   Workflow:
+     Ажилтан → submit → CEO (assignee автомат CEO) → CEO decision:
+       Зөвшөөрөх  → assignee = S03 (Туслах нягтлан) → S03 гүйлгээ хийгээд ✓ done
+       Татгалзах  → decision=rejected, status=done (хаагдсан)
+       Хойшлуулах → due += 7 хоног, CEO дээр үлдэнэ */
+
+const FINANCE_EXECUTOR_ID = 'S03'; // Туслах нягтлан — зөвшөөрсөн хүсэлтийг гүйцэтгэнэ
+
+async function createFinanceRequest({ amount, purpose, beneficiary, justification, dueDate }) {
+  const owner = state.me || 'CEO';
+  const t = {
+    id: uid(),
+    title: `💸 ${beneficiary || 'Хүсэлт'} — ${Number(amount).toLocaleString('mn-MN')}₮`,
+    desc: (purpose ? `Зорилго: ${purpose}\n` : '') + (justification ? `Тайлбар: ${justification}` : ''),
+    branch: 'shared',
+    project: 'finance',
+    assignee: 'CEO',
+    due: dueDate || '',
+    priority: 'high',
+    status: 'open',
+    kind: 'finance_request',
+    amount: Number(amount) || 0,
+    purpose: purpose || '',
+    beneficiary: beneficiary || '',
+    justification: justification || '',
+    decision: 'pending',
+    decision_at: '',
+    decision_by: '',
+    executed_at: '',
+    executed_by: '',
+    createdBy: owner,
+    created: Date.now(),
+  };
+  state.tasks.unshift(t);
+  await saveTask(t);
+  notify('finance.requested', t);
+  return t;
+}
+
+async function decideFinanceRequest(id, decision, reason = '') {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t || t.kind !== 'finance_request') return;
+  if (!state.isCEO) { showToast('Зөвхөн CEO шийдвэр гаргах эрхтэй', 'error'); return; }
+  t.decision = decision;
+  t.decision_at = new Date().toISOString();
+  t.decision_by = state.me;
+  if (reason) t.desc = (t.desc || '') + `\n--\n[${decision}] ${memberName(state.me)}: ${reason}`;
+  if (decision === 'approved') {
+    t.assignee = FINANCE_EXECUTOR_ID;     // Туслах нягтлан руу шилжүүлэх
+    t.priority = 'high';
+    notify('finance.approved', t);
+    showToast('Зөвшөөрсөн. Туслах нягтланд илгээгдсэн.', 'success');
+  } else if (decision === 'rejected') {
+    t.status = 'done';                    // татгалзсан үед хаалга
+    notify('finance.rejected', t);
+    showToast('Татгалзсан.', 'warn');
+  } else if (decision === 'deferred') {
+    // 7 хоног хойшлуулах
+    t.due = addDays(t.due || new Date().toISOString().slice(0,10), 7);
+    notify('finance.deferred', t);
+    showToast('7 хоног хойшлуулсан.', 'warn');
+  }
+  await saveTask(t);
+  render();
+}
+
+function openFinanceModal(id = null) {
+  const t = id ? state.tasks.find(x => x.id === id) : null;
+  state.editingId = id || null;
+  state._modalKind = 'finance';
+  const modal = document.getElementById('finance-modal');
+  const submitActions = document.getElementById('f-submit-actions');
+  const decisionActions = document.getElementById('f-decision-actions');
+  const executeActions = document.getElementById('f-execute-actions');
+  const decisionInfo = document.getElementById('f-decision-info');
+  const title = document.getElementById('finance-modal-title');
+
+  // Default reset
+  submitActions.style.display = '';
+  decisionActions.style.display = 'none';
+  executeActions.style.display = 'none';
+  decisionInfo.style.display = 'none';
+
+  if (!t) {
+    // NEW request — submit mode
+    title.textContent = '💸 Санхүүгийн хүсэлт';
+    document.getElementById('f-amount').value = '';
+    document.getElementById('f-beneficiary').value = '';
+    document.getElementById('f-purpose').value = '';
+    document.getElementById('f-justification').value = '';
+    document.getElementById('f-due').value = '';
+    [...modal.querySelectorAll('input, textarea')].forEach(el => el.removeAttribute('readonly'));
+    document.getElementById('f-save').style.display = '';
+  } else {
+    // VIEW existing — populate read-only
+    title.textContent = '💸 Хүсэлт #' + t.id.slice(-5);
+    document.getElementById('f-amount').value = t.amount || '';
+    document.getElementById('f-beneficiary').value = t.beneficiary || '';
+    document.getElementById('f-purpose').value = t.purpose || '';
+    document.getElementById('f-justification').value = t.justification || '';
+    document.getElementById('f-due').value = t.due || '';
+    [...modal.querySelectorAll('input, textarea')].forEach(el => el.setAttribute('readonly','readonly'));
+    document.getElementById('f-save').style.display = 'none';
+
+    // Decision banner
+    const requester = memberName(t.createdBy);
+    const decisionLabels = {
+      pending:  { bg:'#fef3c7', col:'#92400e', icon:'🕐', text:'Хүлээгдэж буй' },
+      approved: { bg:'#d1fae5', col:'#065f46', icon:'✓',  text:'Зөвшөөрсөн' },
+      rejected: { bg:'#fee2e2', col:'#991b1b', icon:'✗',  text:'Татгалзсан' },
+      deferred: { bg:'#e0e7ff', col:'#3730a3', icon:'🕐', text:'Хойшлогдсон' },
+    };
+    const d = decisionLabels[t.decision] || decisionLabels.pending;
+    let info = `<div style="background:${d.bg};color:${d.col};padding:8px 12px;border-radius:6px;font-weight:600;">${d.icon} ${d.text}</div>`;
+    info += `<div style="margin-top:6px;color:var(--muted);">Илгээгч: <strong>${escapeHtml(requester)}</strong>`;
+    if (t.decision_by) info += ` · Шийдвэр гаргасан: <strong>${escapeHtml(memberName(t.decision_by))}</strong>`;
+    if (t.executed_by) info += ` · Гүйцэтгэсэн: <strong>${escapeHtml(memberName(t.executed_by))}</strong>`;
+    info += `</div>`;
+    decisionInfo.innerHTML = info;
+    decisionInfo.style.display = 'block';
+
+    // Show appropriate actions
+    if (t.decision === 'pending' && state.isCEO) {
+      submitActions.style.display = 'none';
+      decisionActions.style.display = 'flex';
+    } else if (t.decision === 'approved' && t.status !== 'done' && (state.me === FINANCE_EXECUTOR_ID || state.isCEO)) {
+      submitActions.style.display = 'none';
+      executeActions.style.display = 'flex';
+    } else {
+      // Read-only view — show only "Болих" close button
+      document.getElementById('f-save').style.display = 'none';
+    }
+  }
+  modal.classList.add('open');
+}
+
+async function executeFinanceRequest(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t || t.kind !== 'finance_request') return;
+  if (t.decision !== 'approved') { showToast('Зөвхөн зөвшөөрсөн хүсэлтийг гүйцэтгэх боломжтой', 'warn'); return; }
+  if (state.me !== FINANCE_EXECUTOR_ID && !state.isCEO) {
+    showToast('Зөвхөн Туслах нягтлан гүйлгээ хийх эрхтэй', 'error'); return;
+  }
+  t.executed_at = new Date().toISOString();
+  t.executed_by = state.me;
+  t.status = 'done';
+  await saveTask(t);
+  notify('finance.executed', t);
+  showToast('Гүйлгээ хийгдсэн гэж тэмдэглэгдсэн.', 'success');
+  render();
+}
+
 // Given a sub-task, find the previous stage in the same parent.
 // Returns null if t is not a sub-task or stage <= 1.
 function prevStageOf(t) {
@@ -1489,6 +1741,7 @@ function filteredTasks() {
   const today = new Date().toISOString().slice(0,10);
   if (state.view === 'mine') list = list.filter(t => t.assignee === state.me);
   else if (state.view === 'delegated') list = list.filter(t => t.createdBy === state.me && t.assignee !== state.me);
+  else if (state.view === 'finance') list = list.filter(t => t.kind === 'finance_request');
   else if (state.view === 'overdue') list = list.filter(t => t.status === 'open' && t.due && t.due < today);
   else if (state.view === 'today') list = list.filter(t => t.due === today);
   else if (state.view === 'done') list = list.filter(t => t.status === 'done');
@@ -1579,6 +1832,7 @@ function renderTitle() {
     all: ['Бүгд','Бүх checklist'],
     mine: ['Миний даалгаврууд', 'Танд оноосон ажлууд'],
     delegated: ['Үүргэсэн', 'Та өөр хүнд хариуцуулсан ажлууд'],
+    finance: ['💸 Санхүүгийн хүсэлтүүд', 'Зөвшөөрөл хүлээж буй болон гүйцэтгэгдсэн төлбөрүүд'],
     overdue: ['Хоцорсон','Эцсийн хугацаа өнгөрсөн'],
     today: ['Өнөөдөр','Өнөөдөр дуусах ёстой'],
     done: ['Дууссан','Биелсэн даалгаврууд'],
@@ -1607,6 +1861,7 @@ function emptyStateHtml() {
   const v = state.view;
   if (v === 'mine')     { icon = '🎯'; title = 'Танд оноосон ажил алга'; sub = 'Бүх ажилаа дуусгасан байна. Сайн байна!'; }
   else if (v === 'delegated') { icon = '📤'; title = 'Үүргэсэн ажил алга'; sub = 'Та өөр хүнд хариуцуулсан ажил байхгүй байна. + Шинэ дарж оноо.'; }
+  else if (v === 'finance')   { icon = '💸'; title = 'Санхүүгийн хүсэлт алга'; sub = '💸 Хүсэлт дарж шинэ төлбөрийн хүсэлт илгээнэ үү.'; }
   else if (v === 'overdue') { icon = '🎉'; title = 'Хоцорсон даалгавар алга'; sub = 'Бүх хугацаа дотроо явж байна.'; }
   else if (v === 'today')   { icon = '☕'; title = 'Өнөөдөр дуусах юм алга'; sub = 'Тайван өдөр болж байна.'; }
   else if (v === 'done')    { icon = '🗂'; title = 'Дууссан ажил алга'; sub = 'Шинэ ажилаа эхлээрэй.'; }
@@ -1618,6 +1873,7 @@ function renderRow(t) {
   const row = document.createElement('div');
   const isParent = t.kind === 'act_parent';
   const isSub = t.kind === 'act_stage' || !!t.parent_id;
+  const isFinance = t.kind === 'finance_request';
   const lockCheck = isSub ? canCompleteSubtask(t) : { ok: true };
   let cls = 'task-row';
   if (t.status === 'done') cls += ' completed';
@@ -1642,6 +1898,19 @@ function renderRow(t) {
   if (isSub && !lockCheck.ok && t.status !== 'done') {
     const prevName = lockCheck.prev ? `D${lockCheck.prev.stage}` : 'өмнөх';
     extraHtml += `<span class="stage-locked-hint">🔒 ${prevName} дуусгахыг хүлээж байна</span>`;
+  }
+  if (isFinance) {
+    const decisionPills = {
+      pending:  '<span class="finance-pill pending">🕐 Хүлээгдэж буй</span>',
+      approved: '<span class="finance-pill approved">✓ Зөвшөөрсөн · Гүйлгээ хүлээж буй</span>',
+      rejected: '<span class="finance-pill rejected">✗ Татгалзсан</span>',
+      deferred: '<span class="finance-pill deferred">🕐 Хойшлогдсон</span>',
+    };
+    const pill = decisionPills[t.decision] || decisionPills.pending;
+    extraHtml += pill;
+    if (t.status === 'done' && t.decision === 'approved') {
+      extraHtml += '<span class="finance-pill executed">💵 Гүйцэтгэсэн</span>';
+    }
   }
 
   row.innerHTML = `
@@ -1683,6 +1952,16 @@ function renderRow(t) {
   `;
   row.addEventListener('click', (e) => {
     const act = e.target.closest('[data-act]')?.dataset.act;
+    // Finance request — special modal
+    if (isFinance && (act === 'open' || act === 'edit-title')) {
+      openFinanceModal(t.id);
+      return;
+    }
+    if (act === 'toggle' && isFinance) {
+      // Finance row-н checkbox дарвал finance modal-ыг execute mode-руу нээх
+      openFinanceModal(t.id);
+      return;
+    }
     if (act === 'toggle') toggleTask(t.id);
     else if (act === 'delete') deleteTask(t.id);
     else if (act === 'locked') {
@@ -1736,6 +2015,7 @@ function renderCounts() {
   document.getElementById('cnt-all').textContent     = branchTasks.filter(t => t.status !== 'done').length;
   document.getElementById('cnt-mine').textContent    = accessible.filter(t => t.assignee === state.me && t.status !== 'done').length;
   document.getElementById('cnt-delegated').textContent = accessible.filter(t => t.createdBy === state.me && t.assignee !== state.me && t.status !== 'done').length;
+  document.getElementById('cnt-finance').textContent = accessible.filter(t => t.kind === 'finance_request' && t.status !== 'done').length;
   document.getElementById('cnt-overdue').textContent = branchTasks.filter(t => t.status !== 'done' && t.due && t.due < today).length;
   document.getElementById('cnt-today').textContent   = branchTasks.filter(t => t.due === today).length;
   document.getElementById('cnt-done').textContent    = branchTasks.filter(t => t.status === 'done').length;
@@ -2007,6 +2287,53 @@ function initEvents() {
   document.getElementById('new-task-btn').onclick = () => openTaskModal();
   document.getElementById('t-cancel').onclick = closeTaskModal;
   document.getElementById('t-save').onclick = saveTaskFromModal;
+
+  // NEW FINANCE REQUEST button
+  document.getElementById('new-finance-btn')?.addEventListener('click', () => openFinanceModal());
+  document.getElementById('f-cancel')?.addEventListener('click', () => document.getElementById('finance-modal').classList.remove('open'));
+  document.getElementById('f-execute-cancel')?.addEventListener('click', () => document.getElementById('finance-modal').classList.remove('open'));
+  document.getElementById('f-save')?.addEventListener('click', async () => {
+    const amount = document.getElementById('f-amount').value;
+    const beneficiary = document.getElementById('f-beneficiary').value.trim();
+    const purpose = document.getElementById('f-purpose').value.trim();
+    const justification = document.getElementById('f-justification').value.trim();
+    const dueDate = document.getElementById('f-due').value;
+    if (!amount || Number(amount) <= 0) { showToast('Дүн оруулна уу', 'warn'); return; }
+    if (!beneficiary) { showToast('Хүлээн авагчийн нэр шаардлагатай', 'warn'); return; }
+    if (!purpose) { showToast('Зорилго шаардлагатай', 'warn'); return; }
+    const btn = document.getElementById('f-save');
+    btn.disabled = true;
+    try {
+      await createFinanceRequest({ amount, beneficiary, purpose, justification, dueDate });
+      document.getElementById('finance-modal').classList.remove('open');
+      showToast('Хүсэлт CEO-руу илгээгдсэн', 'success');
+      render();
+    } finally { btn.disabled = false; }
+  });
+  document.getElementById('f-approve')?.addEventListener('click', async () => {
+    if (state.editingId) {
+      await decideFinanceRequest(state.editingId, 'approved');
+      document.getElementById('finance-modal').classList.remove('open');
+    }
+  });
+  document.getElementById('f-reject')?.addEventListener('click', async () => {
+    if (!state.editingId) return;
+    if (!(await showConfirm('Энэ хүсэлтийг татгалзах уу? Дахин нээгдэхгүй.', { okText: 'Татгалзах', danger: true }))) return;
+    await decideFinanceRequest(state.editingId, 'rejected');
+    document.getElementById('finance-modal').classList.remove('open');
+  });
+  document.getElementById('f-defer')?.addEventListener('click', async () => {
+    if (state.editingId) {
+      await decideFinanceRequest(state.editingId, 'deferred');
+      document.getElementById('finance-modal').classList.remove('open');
+    }
+  });
+  document.getElementById('f-execute')?.addEventListener('click', async () => {
+    if (!state.editingId) return;
+    if (!(await showConfirm('Энэ гүйлгээг хийсэн гэж тэмдэглэх үү?', { okText: 'Гүйцэтгэсэн' }))) return;
+    await executeFinanceRequest(state.editingId);
+    document.getElementById('finance-modal').classList.remove('open');
+  });
 
   // NEW ORDER (5-stage act) — visible only in M Event branch
   const orderBtn = document.getElementById('new-order-btn');

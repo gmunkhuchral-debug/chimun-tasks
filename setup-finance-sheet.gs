@@ -37,8 +37,9 @@ function setupFinanceSheet() {
     'Гүйцэтгэсэн огноо',        // N — executed_at (ISO datetime)
     'Гүйцэтгэгч',               // O — executed_by (TEAM ID)
     'Хариуцагч',                // P — executor (default S03)
-    'Төлбөрийн баримт',         // Q — payment_proof_url
-    'Шинэчилсэн',               // R — updated (ISO datetime)
+    'Худалдан авсан баримт',    // Q — purchase_proof_url (Drive URL)
+    'Төлбөрийн баримт',         // R — payment_proof_url (Drive URL)
+    'Шинэчилсэн',               // S — updated (ISO datetime)
   ];
 
   // ❶ Header мөрийг бүхэлд нь арилгаад монгол header-аар сольж бичих
@@ -56,9 +57,9 @@ function setupFinanceSheet() {
   sheet.setRowHeight(1, 36);
   Logger.log('2/5 Header формат + freeze');
 
-  // ❸ Огноо/цагийн format — C, K, N, R = datetime; H = date only
+  // ❸ Огноо/цагийн format — C, K, N, S = datetime; H = date only
   const lastRow = Math.max(sheet.getLastRow(), 100);
-  ['C', 'K', 'N', 'R'].forEach(col => {
+  ['C', 'K', 'N', 'S'].forEach(col => {
     sheet.getRange(`${col}2:${col}${lastRow}`).setNumberFormat('yyyy-mm-dd HH:mm');
   });
   sheet.getRange(`H2:H${lastRow}`).setNumberFormat('yyyy-mm-dd');
@@ -98,7 +99,7 @@ function applyDropdown(sheet, colLetter, startRow, endRow, options) {
 }
 
 function applyConditionalFormat(sheet, lastRow) {
-  const range = sheet.getRange(`A2:R${lastRow}`);
+  const range = sheet.getRange(`A2:S${lastRow}`);
   const rules = sheet.getConditionalFormatRules()
     .filter(r => !r.getRanges()[0].getA1Notation().startsWith('A2'));
 

@@ -1,0 +1,228 @@
+{
+  "name": "Чимун Tasks · Finance Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "finance",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "webhook-finance-get",
+      "name": "Webhook GET /finance",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "webhook-finance-post",
+      "name": "Webhook POST /finance",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Route by action: list (GET) / upsert / delete (POST).\nconst input = $input.first().json;\nconst body = input.body || {};\nconst query = input.query || {};\nconst action = (body.action || query.action || 'list').toLowerCase();\nconst request = body.request || null;\nreturn [{ json: { action, request } }];"
+      },
+      "id": "code-route",
+      "name": "Route Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "list", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "outputKey": "list" },
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "upsert", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "outputKey": "upsert" },
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "delete", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "outputKey": "delete" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-action",
+      "name": "Switch by Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": { "__rl": true, "value": "1ogJTucQ9BipiJU_kckjS4DmJ7b0BJbh1_eXuoLWZNEI", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "tasks", "mode": "name" },
+        "options": {}
+      },
+      "id": "sheets-read",
+      "name": "Sheets · Read Finance",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [900, 100],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all requests into single array. Skip deleted.\nconst rows = $input.all().map(it => it.json);\nconst requests = rows.filter(r => r && r.id && r.status !== 'deleted');\nreturn [{ json: { requests } }];"
+      },
+      "id": "code-aggregate",
+      "name": "Aggregate Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 100]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "__rl": true, "value": "1ogJTucQ9BipiJU_kckjS4DmJ7b0BJbh1_eXuoLWZNEI", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "tasks", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["id"],
+          "value": {
+            "id": "={{ $('Route Action').item.json.request.id }}",
+            "requested_by": "={{ $('Route Action').item.json.request.requested_by }}",
+            "requested_at": "={{ $('Route Action').item.json.request.requested_at }}",
+            "amount": "={{ $('Route Action').item.json.request.amount }}",
+            "beneficiary": "={{ $('Route Action').item.json.request.beneficiary }}",
+            "purpose": "={{ $('Route Action').item.json.request.purpose }}",
+            "justification": "={{ $('Route Action').item.json.request.justification }}",
+            "due_date": "={{ $('Route Action').item.json.request.due_date }}",
+            "status": "={{ $('Route Action').item.json.request.status }}",
+            "decision": "={{ $('Route Action').item.json.request.decision }}",
+            "decision_at": "={{ $('Route Action').item.json.request.decision_at }}",
+            "decision_by": "={{ $('Route Action').item.json.request.decision_by }}",
+            "decision_reason": "={{ $('Route Action').item.json.request.decision_reason }}",
+            "executed_at": "={{ $('Route Action').item.json.request.executed_at }}",
+            "executed_by": "={{ $('Route Action').item.json.request.executed_by }}",
+            "executor": "={{ $('Route Action').item.json.request.executor }}",
+            "payment_proof_url": "={{ $('Route Action').item.json.request.payment_proof_url }}",
+            "updated": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheets-upsert",
+      "name": "Sheets · Upsert Finance",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [900, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Soft delete: status='deleted'\nconst r = $('Route Action').item.json.request;\nif (!r || !r.id) return [];\nreturn [{ json: { request: { ...r, status: 'deleted' } } }];"
+      },
+      "id": "code-delete",
+      "name": "Mark Deleted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "__rl": true, "value": "1ogJTucQ9BipiJU_kckjS4DmJ7b0BJbh1_eXuoLWZNEI", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "tasks", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["id"],
+          "value": {
+            "id": "={{ $json.request.id }}",
+            "status": "deleted",
+            "updated": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheets-soft-delete",
+      "name": "Sheets · Soft Delete",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1120, 500],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" }
+            ]
+          }
+        }
+      },
+      "id": "respond-list",
+      "name": "Respond List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, request: $('Route Action').item.json.request }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      },
+      "id": "respond-upsert",
+      "name": "Respond Upsert",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      },
+      "id": "respond-delete",
+      "name": "Respond Delete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 500]
+    }
+  ],
+  "connections": {
+    "Webhook GET /finance": { "main": [[{ "node": "Route Action", "type": "main", "index": 0 }]] },
+    "Webhook POST /finance": { "main": [[{ "node": "Route Action", "type": "main", "index": 0 }]] },
+    "Route Action": { "main": [[{ "node": "Switch by Action", "type": "main", "index": 0 }]] },
+    "Switch by Action": {
+      "main": [
+        [{ "node": "Sheets · Read Finance", "type": "main", "index": 0 }],
+        [{ "node": "Sheets · Upsert Finance", "type": "main", "index": 0 }],
+        [{ "node": "Mark Deleted", "type": "main", "index": 0 }]
+      ]
+    },
+    "Sheets · Read Finance": { "main": [[{ "node": "Aggregate Requests", "type": "main", "index": 0 }]] },
+    "Aggregate Requests": { "main": [[{ "node": "Respond List", "type": "main", "index": 0 }]] },
+    "Sheets · Upsert Finance": { "main": [[{ "node": "Respond Upsert", "type": "main", "index": 0 }]] },
+    "Mark Deleted": { "main": [[{ "node": "Sheets · Soft Delete", "type": "main", "index": 0 }]] },
+    "Sheets · Soft Delete": { "main": [[{ "node": "Respond Delete", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "chimun" }, { "name": "finance" }]
+}

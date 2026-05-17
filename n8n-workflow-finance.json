@@ -70,7 +70,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Sheet → English JSON: монгол баганы нэрсийг англи field name-руу хөрвүүлэх.\n// App-ийн state.financeRequests нь англи талбартай тул хөрвүүлэх ёстой.\nconst MAP = {\n  'ID': 'id',\n  'Илгээгч': 'requested_by',\n  'Илгээсэн огноо': 'requested_at',\n  'Дүн': 'amount',\n  'Хүлээн авагч': 'beneficiary',\n  'Зорилго': 'purpose',\n  'Тайлбар': 'justification',\n  'Хүссэн огноо': 'due_date',\n  'Төлөв': 'status',\n  'Шийдвэр': 'decision',\n  'Шийдвэрийн огноо': 'decision_at',\n  'Шийдвэр гаргасан': 'decision_by',\n  'Шийдвэрийн шалтгаан': 'decision_reason',\n  'Гүйцэтгэсэн огноо': 'executed_at',\n  'Гүйцэтгэгч': 'executed_by',\n  'Хариуцагч': 'executor',\n  'Үнийн судалгаа': 'purchase_proof_url',\n  'Төлбөрийн баримт': 'payment_proof_url',\n  'Худалдан авалтын баримт': 'purchase_receipt_url',\n  'Шинэчилсэн': 'updated',\n};\nconst rows = $input.all().map(it => it.json);\nconst requests = [];\nfor (const r of rows) {\n  if (!r) continue;\n  const out = {};\n  for (const [k, v] of Object.entries(r)) {\n    out[MAP[k] || k] = v;\n  }\n  if (out.id && out.status !== 'deleted') requests.push(out);\n}\nreturn [{ json: { requests } }];"
+        "jsCode": "// Sheet → English JSON: монгол баганы нэрсийг англи field name-руу хөрвүүлэх.\n// App-ийн state.financeRequests нь англи талбартай тул хөрвүүлэх ёстой.\nconst MAP = {\n  'ID': 'id',\n  'Илгээгч': 'requested_by',\n  'Илгээсэн огноо': 'requested_at',\n  'Дүн': 'amount',\n  'Хүлээн авагч': 'beneficiary',\n  'Зорилго': 'purpose',\n  'Тайлбар': 'justification',\n  'Хүссэн огноо': 'due_date',\n  'Төлөв': 'status',\n  'Шийдвэр': 'decision',\n  'Шийдвэрийн огноо': 'decision_at',\n  'Шийдвэр гаргасан': 'decision_by',\n  'Шийдвэрийн шалтгаан': 'decision_reason',\n  'Гүйцэтгэсэн огноо': 'executed_at',\n  'Гүйцэтгэгч': 'executed_by',\n  'Хариуцагч': 'executor',\n  'Үнийн судалгаа': 'purchase_proof_url',\n  'Төлбөрийн баримт': 'payment_proof_url',\n  'Худалдан авалтын баримт': 'purchase_receipt_url',\n  'Категори': 'category',\n  'Салбар': 'dept_branch',\n  'Үе шат': 'frequency',\n  'Банк': 'bank',\n  'Дансны дугаар': 'account_number',\n  'Шинэчилсэн': 'updated',\n};\nconst rows = $input.all().map(it => it.json);\nconst requests = [];\nfor (const r of rows) {\n  if (!r) continue;\n  const out = {};\n  for (const [k, v] of Object.entries(r)) {\n    out[MAP[k] || k] = v;\n  }\n  if (out.id && out.status !== 'deleted') requests.push(out);\n}\nreturn [{ json: { requests } }];"
       },
       "id": "code-aggregate",
       "name": "Aggregate Requests",
@@ -106,6 +106,11 @@
             "Үнийн судалгаа": "={{ $('Route Action').item.json.request.purchase_proof_url }}",
             "Төлбөрийн баримт": "={{ $('Route Action').item.json.request.payment_proof_url }}",
             "Худалдан авалтын баримт": "={{ $('Route Action').item.json.request.purchase_receipt_url }}",
+            "Категори": "={{ $('Route Action').item.json.request.category }}",
+            "Салбар": "={{ $('Route Action').item.json.request.dept_branch }}",
+            "Үе шат": "={{ $('Route Action').item.json.request.frequency }}",
+            "Банк": "={{ $('Route Action').item.json.request.bank }}",
+            "Дансны дугаар": "={{ $('Route Action').item.json.request.account_number }}",
             "Шинэчилсэн": "={{ $now.toISO() }}"
           }
         },

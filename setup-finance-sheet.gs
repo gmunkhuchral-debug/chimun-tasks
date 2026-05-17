@@ -40,7 +40,12 @@ function setupFinanceSheet() {
     'Үнийн судалгаа',           // Q — purchase_proof_url (Drive URL, submit attachments)
     'Төлбөрийн баримт',         // R — payment_proof_url (Drive URL, S03 transfer)
     'Худалдан авалтын баримт',  // S — purchase_receipt_url (Drive URL, final receipt)
-    'Шинэчилсэн',               // T — updated (ISO datetime)
+    'Категори',                 // T — category (11 төрөл)
+    'Салбар',                   // U — dept_branch (M Event / Camp / Нэгдсэн)
+    'Үе шат',                   // V — frequency (Нэг удаагийн / Тогтмол сар бүр / Урт хугацаат гэрээ)
+    'Банк',                     // W — bank (Хаан, Голомт, ХХБ, г.м.)
+    'Дансны дугаар',            // X — account_number
+    'Шинэчилсэн',               // Y — updated (ISO datetime)
   ];
 
   // ❶ Header мөрийг бүхэлд нь арилгаад монгол header-аар сольж бичих
@@ -58,9 +63,9 @@ function setupFinanceSheet() {
   sheet.setRowHeight(1, 36);
   Logger.log('2/5 Header формат + freeze');
 
-  // ❸ Огноо/цагийн format — C, K, N, T = datetime; H = date only
+  // ❸ Огноо/цагийн format — C, K, N, Y = datetime; H = date only
   const lastRow = Math.max(sheet.getLastRow(), 100);
-  ['C', 'K', 'N', 'T'].forEach(col => {
+  ['C', 'K', 'N', 'Y'].forEach(col => {
     sheet.getRange(`${col}2:${col}${lastRow}`).setNumberFormat('yyyy-mm-dd HH:mm');
   });
   sheet.getRange(`H2:H${lastRow}`).setNumberFormat('yyyy-mm-dd');
@@ -68,10 +73,24 @@ function setupFinanceSheet() {
   sheet.getRange(`D2:D${lastRow}`).setNumberFormat('[$₮]#,##0;[red][$₮]-#,##0');
   Logger.log('3/5 Огноо + Дүн формат');
 
-  // ❹ Төлөв (I) болон Шийдвэр (J) dropdown
+  // ❹ Dropdown-ууд — Төлөв (I), Шийдвэр (J), Категори (T), Салбар (U), Үе шат (V)
   applyDropdown(sheet, 'I', 2, lastRow, ['open', 'done', 'deleted']);
   applyDropdown(sheet, 'J', 2, lastRow, ['pending', 'approved', 'rejected', 'deferred']);
-  Logger.log('4/5 Dropdown суулгасан');
+  applyDropdown(sheet, 'T', 2, lastRow, [
+    'Оффис хэрэглээ','Үйл ажиллагаа','Тоног төхөөрөмж','Засвар / арчилгаа',
+    'Маркетинг / контент','Тээвэр / шатахуун','Хоол / event provisions',
+    'Цалин / шагнал','Татвар / шимтгэл','Хууль зүй / гэрээ','Бусад'
+  ]);
+  applyDropdown(sheet, 'U', 2, lastRow, ['M Event','Camp','Нэгдсэн']);
+  applyDropdown(sheet, 'V', 2, lastRow, ['Нэг удаагийн','Тогтмол сар бүр','Урт хугацаат гэрээ']);
+  applyDropdown(sheet, 'W', 2, lastRow, [
+    'Хаан банк','Голомт банк','Худалдаа хөгжлийн банк','Хас банк','Төрийн банк',
+    'Капитрон банк','Богд банк','М банк','Чингис хаан банк','Ариг банк',
+    'Үндэсний хөрөнгө оруулалтын банк','Транс банк','Бусад'
+  ]);
+  // Дансны дугаарыг тоо хэлбэрээр format, leading 0 хадгалах
+  sheet.getRange(`X2:X${lastRow}`).setNumberFormat('@'); // text format
+  Logger.log('4/5 Dropdown + банк суулгасан');
 
   // ❺ Conditional formatting — Шийдвэр баганаар өнгөтэй
   applyConditionalFormat(sheet, lastRow);
@@ -100,7 +119,7 @@ function applyDropdown(sheet, colLetter, startRow, endRow, options) {
 }
 
 function applyConditionalFormat(sheet, lastRow) {
-  const range = sheet.getRange(`A2:T${lastRow}`);
+  const range = sheet.getRange(`A2:Y${lastRow}`);
   const rules = sheet.getConditionalFormatRules()
     .filter(r => !r.getRanges()[0].getA1Notation().startsWith('A2'));
 

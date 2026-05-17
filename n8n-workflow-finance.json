@@ -70,7 +70,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Aggregate all requests into single array. Skip deleted.\nconst rows = $input.all().map(it => it.json);\nconst requests = rows.filter(r => r && r.id && r.status !== 'deleted');\nreturn [{ json: { requests } }];"
+        "jsCode": "// Sheet → English JSON: монгол баганы нэрсийг англи field name-руу хөрвүүлэх.\n// App-ийн state.financeRequests нь англи талбартай тул хөрвүүлэх ёстой.\nconst MAP = {\n  'ID': 'id',\n  'Илгээгч': 'requested_by',\n  'Илгээсэн огноо': 'requested_at',\n  'Дүн': 'amount',\n  'Хүлээн авагч': 'beneficiary',\n  'Зорилго': 'purpose',\n  'Тайлбар': 'justification',\n  'Хүссэн огноо': 'due_date',\n  'Төлөв': 'status',\n  'Шийдвэр': 'decision',\n  'Шийдвэрийн огноо': 'decision_at',\n  'Шийдвэр гаргасан': 'decision_by',\n  'Шийдвэрийн шалтгаан': 'decision_reason',\n  'Гүйцэтгэсэн огноо': 'executed_at',\n  'Гүйцэтгэгч': 'executed_by',\n  'Хариуцагч': 'executor',\n  'Төлбөрийн баримт': 'payment_proof_url',\n  'Шинэчилсэн': 'updated',\n};\nconst rows = $input.all().map(it => it.json);\nconst requests = [];\nfor (const r of rows) {\n  if (!r) continue;\n  const out = {};\n  for (const [k, v] of Object.entries(r)) {\n    out[MAP[k] || k] = v;\n  }\n  if (out.id && out.status !== 'deleted') requests.push(out);\n}\nreturn [{ json: { requests } }];"
       },
       "id": "code-aggregate",
       "name": "Aggregate Requests",
@@ -85,26 +85,26 @@
         "sheetName": { "__rl": true, "value": "tasks", "mode": "name" },
         "columns": {
           "mappingMode": "defineBelow",
-          "matchingColumns": ["id"],
+          "matchingColumns": ["ID"],
           "value": {
-            "id": "={{ $('Route Action').item.json.request.id }}",
-            "requested_by": "={{ $('Route Action').item.json.request.requested_by }}",
-            "requested_at": "={{ $('Route Action').item.json.request.requested_at }}",
-            "amount": "={{ $('Route Action').item.json.request.amount }}",
-            "beneficiary": "={{ $('Route Action').item.json.request.beneficiary }}",
-            "purpose": "={{ $('Route Action').item.json.request.purpose }}",
-            "justification": "={{ $('Route Action').item.json.request.justification }}",
-            "due_date": "={{ $('Route Action').item.json.request.due_date }}",
-            "status": "={{ $('Route Action').item.json.request.status }}",
-            "decision": "={{ $('Route Action').item.json.request.decision }}",
-            "decision_at": "={{ $('Route Action').item.json.request.decision_at }}",
-            "decision_by": "={{ $('Route Action').item.json.request.decision_by }}",
-            "decision_reason": "={{ $('Route Action').item.json.request.decision_reason }}",
-            "executed_at": "={{ $('Route Action').item.json.request.executed_at }}",
-            "executed_by": "={{ $('Route Action').item.json.request.executed_by }}",
-            "executor": "={{ $('Route Action').item.json.request.executor }}",
-            "payment_proof_url": "={{ $('Route Action').item.json.request.payment_proof_url }}",
-            "updated": "={{ $now.toISO() }}"
+            "ID": "={{ $('Route Action').item.json.request.id }}",
+            "Илгээгч": "={{ $('Route Action').item.json.request.requested_by }}",
+            "Илгээсэн огноо": "={{ $('Route Action').item.json.request.requested_at }}",
+            "Дүн": "={{ $('Route Action').item.json.request.amount }}",
+            "Хүлээн авагч": "={{ $('Route Action').item.json.request.beneficiary }}",
+            "Зорилго": "={{ $('Route Action').item.json.request.purpose }}",
+            "Тайлбар": "={{ $('Route Action').item.json.request.justification }}",
+            "Хүссэн огноо": "={{ $('Route Action').item.json.request.due_date }}",
+            "Төлөв": "={{ $('Route Action').item.json.request.status }}",
+            "Шийдвэр": "={{ $('Route Action').item.json.request.decision }}",
+            "Шийдвэрийн огноо": "={{ $('Route Action').item.json.request.decision_at }}",
+            "Шийдвэр гаргасан": "={{ $('Route Action').item.json.request.decision_by }}",
+            "Шийдвэрийн шалтгаан": "={{ $('Route Action').item.json.request.decision_reason }}",
+            "Гүйцэтгэсэн огноо": "={{ $('Route Action').item.json.request.executed_at }}",
+            "Гүйцэтгэгч": "={{ $('Route Action').item.json.request.executed_by }}",
+            "Хариуцагч": "={{ $('Route Action').item.json.request.executor }}",
+            "Төлбөрийн баримт": "={{ $('Route Action').item.json.request.payment_proof_url }}",
+            "Шинэчилсэн": "={{ $now.toISO() }}"
           }
         },
         "options": {}
@@ -133,11 +133,11 @@
         "sheetName": { "__rl": true, "value": "tasks", "mode": "name" },
         "columns": {
           "mappingMode": "defineBelow",
-          "matchingColumns": ["id"],
+          "matchingColumns": ["ID"],
           "value": {
-            "id": "={{ $json.request.id }}",
-            "status": "deleted",
-            "updated": "={{ $now.toISO() }}"
+            "ID": "={{ $json.request.id }}",
+            "Төлөв": "deleted",
+            "Шинэчилсэн": "={{ $now.toISO() }}"
           }
         },
         "options": {}

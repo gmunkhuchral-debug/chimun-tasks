@@ -44,7 +44,7 @@ status, kpi_code, createdBy, parent_id, kind, stage, created, updated
 5. **Active toggle** асаах
 6. **Webhook POST /finance** node → Production URL хуулах:
    ```
-   https://chimun.app.n8n.cloud/webhook/finance
+   https://chimunllc.app.n8n.cloud/webhook/finance
    ```
 
 ## ❹ Хуучин Tasks sync workflow update
@@ -59,7 +59,7 @@ n8n-ийн **Чимун Tasks · Sync** (одоо ажиллаж байгаа) w
 1. https://gmunkhuchral-debug.github.io/chimun-tasks/ нээх (GitHub push-ийн дараа)
 2. **⚙ Тохиргоо** → **n8n Finance Webhook URL** талбарт:
    ```
-   https://chimun.app.n8n.cloud/webhook/finance
+   https://chimunllc.app.n8n.cloud/webhook/finance
    ```
 3. **Хадгалах**
 

@@ -6,7 +6,7 @@
         "path": "finance",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://chimunllc.github.io"
         }
       },
       "id": "564ed543-c9ad-452f-b607-26bb02aa25b4",
@@ -25,7 +25,7 @@
         "path": "finance",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://chimunllc.github.io"
         }
       },
       "id": "acb09c5b-b629-4507-b47a-fc756a5301e0",
@@ -856,7 +856,7 @@
         "path": "upload-receipt",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://chimunllc.github.io"
         }
       },
       "id": "49b6bf05-b620-497a-8c91-7a1966a463fa",
